@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import analysis
+from app.routers import analysis, upload
 
 app = FastAPI(
     title="Marginal Efficiency Radar API",
@@ -18,6 +18,7 @@ app.add_middleware(
 )
 
 app.include_router(analysis.router)
+app.include_router(upload.router)
 
 
 @app.get("/")
