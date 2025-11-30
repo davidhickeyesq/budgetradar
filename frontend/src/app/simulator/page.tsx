@@ -9,7 +9,7 @@ import {
     simulateScenario,
     type SimulateScenarioResponse,
     type ChannelProjection,
-    type ChannelAnalysis
+    type MarginalCpaResult
 } from '@/lib/api'
 
 const ACCOUNT_ID = 'a8465a7b-bf39-4352-9658-4f1b8d05b381'
@@ -31,7 +31,7 @@ export default function ScenarioPlannerPage() {
             const analysisData = await analyzeChannels(ACCOUNT_ID, 50, 'revenue')
 
             const initialAllocations: Record<string, number> = {}
-            analysisData.channels.forEach((c: ChannelAnalysis) => {
+            analysisData.channels.forEach((c: MarginalCpaResult) => {
                 initialAllocations[c.channel_name] = c.current_spend
             })
 
@@ -140,15 +140,15 @@ export default function ScenarioPlannerPage() {
                                         <span>Monthly Revenue</span>
                                         <span className={data?.delta_revenue && data.delta_revenue >= 0 ? 'text-emerald-600' : 'text-red-600'}>
                                             {data?.delta_revenue && data.delta_revenue > 0 ? '+' : ''}
-                                            ${Math.round(data?.delta_revenue || 0).toLocaleString()}
+                                            ${Math.round((data?.delta_revenue || 0) * 30.4).toLocaleString()}
                                         </span>
                                     </div>
                                     <div className="flex items-baseline justify-between">
                                         <span className="text-2xl font-bold text-gray-900">
-                                            ${Math.round(data?.total_projected_revenue || 0).toLocaleString()}
+                                            ${Math.round((data?.total_projected_revenue || 0) * 30.4).toLocaleString()}
                                         </span>
                                         <span className="text-sm text-gray-400 line-through">
-                                            ${Math.round(data?.total_current_revenue || 0).toLocaleString()}
+                                            ${Math.round((data?.total_current_revenue || 0) * 30.4).toLocaleString()}
                                         </span>
                                     </div>
                                     <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
@@ -270,12 +270,12 @@ function ChannelRow({ channel, onSpendChange }: { channel: ChannelProjection, on
             {/* Projected Revenue */}
             <div className="col-span-3 text-right">
                 <div className="font-medium text-gray-900">
-                    ${Math.round(channel.projected_revenue).toLocaleString()}
+                    ${Math.round(channel.projected_revenue * 30.4).toLocaleString()}
                 </div>
                 {channel.delta_revenue !== 0 && (
                     <div className={`text-xs ${channel.delta_revenue > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {channel.delta_revenue > 0 ? '+' : ''}
-                        ${Math.round(channel.delta_revenue).toLocaleString()}
+                        ${Math.round(channel.delta_revenue * 30.4).toLocaleString()}
                     </div>
                 )}
             </div>
