@@ -46,8 +46,16 @@ export function CsvUploader({ accountId, onUploadComplete }: CsvUploaderProps) {
           return
         }
         
-        const data = results.data as Record<string, string>[]
-        const cols = results.meta.fields || []
+        let data = results.data as Record<string, string>[]
+        let cols = results.meta.fields || []
+        
+        // Fallback: if only 1 column detected and it contains commas, the spreadsheet wasn't split properly
+        if (cols.length === 1 && cols[0].includes(',')) {
+          setError(
+            'Your spreadsheet has all data in one column. In Google Sheets: select column A → Data → Split text to columns → then re-export as CSV.'
+          )
+          return
+        }
         
         setCsvData(data)
         setHeaders(cols)
