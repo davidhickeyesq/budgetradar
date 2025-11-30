@@ -16,6 +16,7 @@ export interface MarginalCpaResult {
   traffic_light: 'green' | 'yellow' | 'red' | 'grey'
   recommendation: string
   model_params: HillParameters | null
+  grey_reason: 'insufficient_data' | 'low_r_squared' | 'fit_failed' | null
 }
 
 export interface ChannelAnalysisResponse {

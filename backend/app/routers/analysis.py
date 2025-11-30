@@ -124,6 +124,13 @@ async def analyze_channels(request: ChannelAnalysisRequest):
             total_revenue = float(revenue.sum())
             avg_cpa = float(spend.sum()) / total_revenue if total_revenue > 0 else None
             
+            if fit_result and "insufficient_data" in fit_result.status:
+                grey_reason = "insufficient_data"
+            elif fit_result and "R²" in fit_result.status:
+                grey_reason = "low_r_squared"
+            else:
+                grey_reason = "fit_failed"
+            
             results.append(MarginalCpaResult(
                 channel_name=channel_name,
                 current_spend=current_spend,
@@ -132,6 +139,7 @@ async def analyze_channels(request: ChannelAnalysisRequest):
                 traffic_light="grey",
                 recommendation=get_recommendation("grey"),
                 model_params=None,
+                grey_reason=grey_reason,
             ))
             continue
         

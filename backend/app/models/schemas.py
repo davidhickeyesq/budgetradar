@@ -26,6 +26,7 @@ class MarginalCpaResult(BaseModel):
     traffic_light: Literal["green", "yellow", "red", "grey"]
     recommendation: str
     model_params: Optional[HillParameters]
+    grey_reason: Optional[str] = None
 
 
 class FitModelRequest(BaseModel):

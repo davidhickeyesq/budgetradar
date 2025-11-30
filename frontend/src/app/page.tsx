@@ -19,6 +19,7 @@ function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
     targetCpa: result.target_cpa,
     trafficLight: result.traffic_light,
     rSquared: result.model_params?.r_squared ?? null,
+    greyReason: result.grey_reason,
   }
 }
 
@@ -104,19 +105,27 @@ export default function Home() {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <TrafficLightRadar channels={channels} targetCpa={TARGET_CPA} />
+          <TrafficLightRadar 
+            channels={channels} 
+            targetCpa={TARGET_CPA} 
+            optimizationMode={optimizationGoal}
+          />
         </div>
         <div className="space-y-6">
-          <SummaryCard channels={channels} />
+          <SummaryCard channels={channels} optimizationMode={optimizationGoal} />
         </div>
       </div>
       
-      <ScenarioPlanner channels={channels} accountId={ACCOUNT_ID} />
+      <ScenarioPlanner 
+        channels={channels} 
+        accountId={ACCOUNT_ID} 
+        optimizationMode={optimizationGoal}
+      />
     </div>
   )
 }
 
-function SummaryCard({ channels }: { channels: ChannelMetrics[] }) {
+function SummaryCard({ channels, optimizationMode }: { channels: ChannelMetrics[], optimizationMode: 'revenue' | 'conversions' }) {
   const totalSpend = channels.reduce((sum, c) => sum + c.currentSpend, 0)
   const greenChannels = channels.filter(c => c.trafficLight === 'green').length
   const yellowChannels = channels.filter(c => c.trafficLight === 'yellow').length
@@ -139,15 +148,21 @@ function SummaryCard({ channels }: { channels: ChannelMetrics[] }) {
         </div>
         <hr />
         <div className="flex justify-between">
-          <dt className="text-sm text-gray-500">🟢 Scale</dt>
+          <dt className="text-sm text-gray-500">
+            🟢 {optimizationMode === 'revenue' ? 'Profitable (ROAS > 1.1x)' : 'Below Target CPA'}
+          </dt>
           <dd className="text-sm font-medium text-emerald-600">{greenChannels}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-sm text-gray-500">🟡 Maintain</dt>
+          <dt className="text-sm text-gray-500">
+            🟡 {optimizationMode === 'revenue' ? 'Break-even (ROAS ~1x)' : 'Near Target CPA'}
+          </dt>
           <dd className="text-sm font-medium text-yellow-600">{yellowChannels}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-sm text-gray-500">🔴 Cut</dt>
+          <dt className="text-sm text-gray-500">
+            🔴 {optimizationMode === 'revenue' ? 'Unprofitable (ROAS < 0.9x)' : 'Above Target CPA'}
+          </dt>
           <dd className="text-sm font-medium text-red-600">{redChannels}</dd>
         </div>
         {greyChannels > 0 && (

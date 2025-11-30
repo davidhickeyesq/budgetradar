@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Card, Title, Text, Flex, Badge } from '@tremor/react'
 import { simulateScenario, ChannelProjection, ChannelAllocation } from '@/lib/api'
-import type { ChannelMetrics } from '@/types'
+import type { ChannelMetrics, OptimizationMode } from '@/types'
 
 interface ScenarioPlannerProps {
   channels: ChannelMetrics[]
   accountId: string
+  optimizationMode: OptimizationMode
 }
 
 interface ChannelSlider {
@@ -17,7 +18,8 @@ interface ChannelSlider {
   has_model: boolean
 }
 
-export function ScenarioPlanner({ channels, accountId }: ScenarioPlannerProps) {
+export function ScenarioPlanner({ channels, accountId, optimizationMode }: ScenarioPlannerProps) {
+  const isRevenueMode = optimizationMode === 'revenue'
   const [sliders, setSliders] = useState<ChannelSlider[]>([])
   const [projections, setProjections] = useState<ChannelProjection[]>([])
   const [totals, setTotals] = useState({
@@ -101,8 +103,12 @@ export function ScenarioPlanner({ channels, accountId }: ScenarioPlannerProps) {
     <Card className="mt-6">
       <Flex justifyContent="between" alignItems="center">
         <div>
-          <Title>Scenario Planner</Title>
-          <Text className="text-gray-500">Drag budgets to see projected outcomes</Text>
+          <Title>{isRevenueMode ? 'Revenue Scenario Planner' : 'Lead Volume Planner'}</Title>
+          <Text className="text-gray-500">
+            {isRevenueMode 
+              ? 'Adjust budgets to see projected revenue impact (ROAS-based)'
+              : 'Adjust budgets to see projected lead volume at target CPA'}
+          </Text>
         </div>
         <button
           onClick={resetToOriginal}
@@ -169,7 +175,9 @@ export function ScenarioPlanner({ channels, accountId }: ScenarioPlannerProps) {
               {projection && (
                 <div className="mt-3 pt-3 border-t">
                   <Flex justifyContent="between" alignItems="center">
-                    <Text className="text-xs text-gray-500">Revenue Impact:</Text>
+                    <Text className="text-xs text-gray-500">
+                      {isRevenueMode ? 'Revenue Impact:' : 'Est. Leads Impact:'}
+                    </Text>
                     {(() => {
                       const deltaSpend = slider.proposed_spend - slider.current_spend
                       const incrementalRoas = deltaSpend !== 0 ? deltaRevenue / deltaSpend : 0
@@ -180,7 +188,9 @@ export function ScenarioPlanner({ channels, accountId }: ScenarioPlannerProps) {
                         : 'red'
                       return (
                         <Badge color={badgeColor} size="sm">
-                          {isPositive ? '+' : ''}${deltaRevenue.toFixed(0)}
+                          {isRevenueMode 
+                            ? `${isPositive ? '+' : ''}$${deltaRevenue.toFixed(0)}`
+                            : `${isPositive ? '+' : ''}${Math.round(deltaRevenue / 50)} leads`}
                         </Badge>
                       )
                     })()}
@@ -195,7 +205,9 @@ export function ScenarioPlanner({ channels, accountId }: ScenarioPlannerProps) {
       <div className="mt-6 p-4 bg-gray-900 rounded-lg text-white">
         <Flex justifyContent="between" alignItems="center">
           <div>
-            <Text className="text-gray-400 text-sm">Total Projected Impact</Text>
+            <Text className="text-gray-400 text-sm">
+              {isRevenueMode ? 'Total Revenue Impact' : 'Total Lead Volume Impact'}
+            </Text>
             {(() => {
               const incrementalRoas = totals.delta_spend !== 0 ? totals.delta_revenue / totals.delta_spend : 0
               const isProfitable = incrementalRoas >= 1.0
@@ -203,18 +215,33 @@ export function ScenarioPlanner({ channels, accountId }: ScenarioPlannerProps) {
                 : (totals.delta_revenue > 0 && isProfitable) ? 'text-emerald-400'
                 : (totals.delta_revenue > 0 && !isProfitable) ? 'text-orange-400'
                 : 'text-red-400'
+              const estimatedLeads = Math.round(totals.delta_revenue / 50)
               return (
                 <div className="flex items-baseline gap-4 mt-1">
                   <span className={`text-2xl font-bold ${colorClass}`}>
-                    {totals.delta_revenue >= 0 ? '+' : ''}
-                    ${totals.delta_revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {isRevenueMode 
+                      ? `${totals.delta_revenue >= 0 ? '+' : ''}$${totals.delta_revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                      : `${estimatedLeads >= 0 ? '+' : ''}${estimatedLeads.toLocaleString()} leads`}
                   </span>
                   <span className="text-gray-400 text-sm">
-                    revenue / day
-                    {totals.delta_spend !== 0 && (
-                      <span className={isProfitable ? 'text-emerald-400' : 'text-orange-400'}>
-                        {' '}({incrementalRoas.toFixed(2)}x ROAS)
-                      </span>
+                    {isRevenueMode ? (
+                      <>
+                        revenue / day
+                        {totals.delta_spend !== 0 && (
+                          <span className={isProfitable ? 'text-emerald-400' : 'text-orange-400'}>
+                            {' '}({incrementalRoas.toFixed(2)}x ROAS)
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        per day
+                        {totals.delta_spend !== 0 && estimatedLeads !== 0 && (
+                          <span className="text-gray-300">
+                            {' '}(${(totals.delta_spend / estimatedLeads).toFixed(0)} CPA)
+                          </span>
+                        )}
+                      </>
                     )}
                   </span>
                 </div>
