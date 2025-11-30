@@ -109,7 +109,7 @@ def fit_hill_model(
             ss_tot = np.sum((revenue - np.mean(revenue)) ** 2)
             r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
             
-            if r_squared > best_r_squared:
+            if r_squared > best_r_squared and r_squared >= 0.5:
                 best_r_squared = r_squared
                 best_result = HillFitResult(
                     alpha=float(alpha),
@@ -128,7 +128,7 @@ def fit_hill_model(
     if best_result is None:
         return HillFitResult(
             alpha=0, beta=0, kappa=0, max_yield=0, r_squared=0,
-            status="failed: curve fitting did not converge"
+            status="failed: model fit too poor (R² < 50%) or did not converge"
         )
     
     return best_result
@@ -143,12 +143,19 @@ def calculate_marginal_cpa(
     Calculate Marginal CPA using the 10% increment rule (per AGENTS.md).
     
     Marginal CPA = (Spend_Next - Spend_Current) / (Conversions_Next - Conversions_Current)
+    
+    IMPORTANT: The model was trained on adstocked spend, so we must apply
+    the steady-state adstock transformation to the current spend.
+    For a geometric adstock with decay alpha, the steady-state multiplier is 1/(1-alpha).
     """
     if params.status != "success" or current_spend <= 0:
         return None
     
-    adstocked_current = current_spend
-    adstocked_next = current_spend * (1 + increment)
+    alpha = params.alpha
+    adstock_multiplier = 1.0 / (1.0 - alpha) if alpha < 1.0 else 1.0
+    
+    adstocked_current = current_spend * adstock_multiplier
+    adstocked_next = current_spend * (1 + increment) * adstock_multiplier
     
     conversions_current = hill_function(
         np.array([adstocked_current]),
@@ -166,35 +173,59 @@ def calculate_marginal_cpa(
     
     delta_conversions = conversions_next - conversions_current
     
-    if delta_conversions <= 0:
-        return None
+    if delta_conversions <= 0.001:
+        return 9999.0
     
-    delta_spend = adstocked_next - adstocked_current
+    delta_spend = (current_spend * (1 + increment)) - current_spend
     marginal_cpa = delta_spend / delta_conversions
     
     return marginal_cpa
 
 
-def get_traffic_light(marginal_cpa: Optional[float], target_cpa: float) -> str:
+def get_traffic_light(
+    marginal_cpa: Optional[float], 
+    target_cpa: float,
+    optimization_target: str = "revenue"
+) -> str:
     """
-    Determine traffic light based on marginal CPA vs target CPA.
+    Determine traffic light based on marginal efficiency.
     
-    Green: Marginal CPA < 0.9 × Target CPA → Scale spend
-    Yellow: 0.9 × Target CPA ≤ Marginal CPA ≤ 1.1 × Target CPA → Maintain
-    Red: Marginal CPA > 1.1 × Target CPA → Cut spend (saturated)
-    Grey: Insufficient data
+    For REVENUE mode (ROAS-based):
+    - marginal_cpa here is actually delta_spend/delta_revenue = 1/ROAS
+    - Lower is better (means higher ROAS)
+    - Green: ROAS > 1.1 (profitable growth)
+    - Yellow: 0.9 ≤ ROAS ≤ 1.1 (break-even zone)
+    - Red: ROAS < 0.9 (losing money on the margin)
+    
+    For CONVERSIONS mode (CPA-based):
+    - Green: Marginal CPA < 0.9 × Target CPA
+    - Yellow: 0.9 × Target CPA ≤ Marginal CPA ≤ 1.1 × Target CPA
+    - Red: Marginal CPA > 1.1 × Target CPA
     """
-    if marginal_cpa is None:
+    if marginal_cpa is None or marginal_cpa >= 9999:
         return "grey"
     
-    ratio = marginal_cpa / target_cpa
-    
-    if ratio < 0.9:
-        return "green"
-    elif ratio <= 1.1:
-        return "yellow"
+    if optimization_target == "revenue":
+        # marginal_cpa = delta_spend / delta_revenue = 1/ROAS
+        # So ROAS = 1 / marginal_cpa
+        marginal_roas = 1.0 / marginal_cpa if marginal_cpa > 0 else 0
+        
+        if marginal_roas >= 1.1:
+            return "green"  # Profitable growth
+        elif marginal_roas >= 0.9:
+            return "yellow"  # Break-even zone
+        else:
+            return "red"  # Losing money
     else:
-        return "red"
+        # CPA mode: lower marginal CPA is better
+        ratio = marginal_cpa / target_cpa
+        
+        if ratio < 0.9:
+            return "green"
+        elif ratio <= 1.1:
+            return "yellow"
+        else:
+            return "red"
 
 
 def get_recommendation(traffic_light: str) -> str:
@@ -205,3 +236,25 @@ def get_recommendation(traffic_light: str) -> str:
         "grey": "Insufficient data (need 21+ days)"
     }
     return recommendations.get(traffic_light, "Unknown status")
+
+
+def predict_revenue(spend: float, params: HillFitResult) -> float:
+    """
+    Predict revenue for a given spend using saved Hill parameters.
+    Pure algebra - no regression, instant calculation.
+    """
+    if params.status != "success" or spend <= 0:
+        return 0.0
+    
+    alpha = params.alpha
+    adstock_multiplier = 1.0 / (1.0 - alpha) if alpha < 1.0 else 1.0
+    adstocked_spend = spend * adstock_multiplier
+    
+    predicted = hill_function(
+        np.array([adstocked_spend]),
+        params.max_yield,
+        params.beta,
+        params.kappa
+    )[0]
+    
+    return float(predicted)

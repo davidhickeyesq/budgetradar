@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { TrafficLightRadar } from '@/components/TrafficLightRadar'
+import { ScenarioPlanner } from '@/components/ScenarioPlanner'
 import { analyzeChannels, MarginalCpaResult } from '@/lib/api'
 import type { ChannelMetrics } from '@/types'
 
@@ -23,6 +24,8 @@ function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
 
 export default function Home() {
   const [channels, setChannels] = useState<ChannelMetrics[]>([])
+  const [optimizationGoal, setOptimizationGoal] = useState<'revenue' | 'conversions'>('revenue')
+  const [modeLabel, setModeLabel] = useState<string>('ROAS Mode')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,8 +33,9 @@ export default function Home() {
     async function fetchData() {
       try {
         setLoading(true)
-        const response = await analyzeChannels(ACCOUNT_ID, TARGET_CPA)
+        const response = await analyzeChannels(ACCOUNT_ID, TARGET_CPA, optimizationGoal)
         setChannels(response.channels.map(mapApiToChannelMetrics))
+        setModeLabel(response.mode_label)
         setError(null)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data')
@@ -41,7 +45,7 @@ export default function Home() {
     }
 
     fetchData()
-  }, [])
+  }, [optimizationGoal])
 
   if (loading) {
     return (
@@ -65,6 +69,39 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600">Optimization Goal:</span>
+          <div className="flex rounded-lg overflow-hidden border border-gray-300">
+            <button
+              onClick={() => setOptimizationGoal('revenue')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                optimizationGoal === 'revenue'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Max Revenue
+            </button>
+            <button
+              onClick={() => setOptimizationGoal('conversions')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                optimizationGoal === 'conversions'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Max Leads
+            </button>
+          </div>
+        </div>
+        <span className="text-xs text-gray-500">
+          {modeLabel === 'ROAS Mode' 
+            ? 'Green = Profitable (ROAS > 1.1)' 
+            : 'Green = Below target CPA'}
+        </span>
+      </div>
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <TrafficLightRadar channels={channels} targetCpa={TARGET_CPA} />
@@ -73,6 +110,8 @@ export default function Home() {
           <SummaryCard channels={channels} />
         </div>
       </div>
+      
+      <ScenarioPlanner channels={channels} accountId={ACCOUNT_ID} />
     </div>
   )
 }

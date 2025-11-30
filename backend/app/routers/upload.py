@@ -25,6 +25,7 @@ class CsvUploadResponse(BaseModel):
     inserted: int
     skipped: int
     message: str
+    models_updated: int = 0
 
 
 def parse_date(date_str: str) -> str:

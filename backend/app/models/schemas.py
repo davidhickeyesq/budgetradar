@@ -15,6 +15,7 @@ class HillParameters(BaseModel):
     kappa: float
     max_yield: float
     r_squared: float
+    status: str = "success"
 
 
 class MarginalCpaResult(BaseModel):
@@ -42,7 +43,10 @@ class FitModelResponse(BaseModel):
 class ChannelAnalysisRequest(BaseModel):
     account_id: str
     target_cpa: float = 50.0
+    optimization_goal: Literal["revenue", "conversions"] = "revenue"
 
 
 class ChannelAnalysisResponse(BaseModel):
     channels: list[MarginalCpaResult]
+    optimization_mode: Literal["revenue", "conversions"] = "revenue"
+    mode_label: str = "ROAS Mode"

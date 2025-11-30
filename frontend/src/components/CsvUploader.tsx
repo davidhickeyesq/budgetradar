@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 
@@ -24,10 +25,11 @@ export function CsvUploader({ accountId, onUploadComplete }: CsvUploaderProps) {
   const [csvData, setCsvData] = useState<Record<string, string>[]>([])
   const [headers, setHeaders] = useState<string[]>([])
   const [mapping, setMapping] = useState<Partial<ColumnMapping>>({})
-  const [step, setStep] = useState<'upload' | 'map' | 'confirm' | 'done'>('upload')
-  const [uploading, setUploading] = useState(false)
+  const [step, setStep] = useState<'upload' | 'map' | 'confirm' | 'uploading' | 'training' | 'done'>('upload')
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ inserted: number } | null>(null)
+  const [uploadResult, setUploadResult] = useState<{ inserted: number } | null>(null)
+  const [trainResult, setTrainResult] = useState<{ models_fitted: number } | null>(null)
+  const router = useRouter()
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
@@ -100,10 +102,13 @@ export function CsvUploader({ accountId, onUploadComplete }: CsvUploaderProps) {
   const handleUpload = async () => {
     if (!isMappingComplete) return
 
-    setUploading(true)
     setError(null)
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
     try {
+      // Step 1: Upload CSV data
+      setStep('uploading')
+      
       const mappedData = csvData.map(row => ({
         date: row[mapping.date!],
         channel_name: row[mapping.channel_name!],
@@ -112,8 +117,7 @@ export function CsvUploader({ accountId, onUploadComplete }: CsvUploaderProps) {
         impressions: mapping.impressions ? parseInt(row[mapping.impressions]) || 0 : null,
       }))
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${API_URL}/api/upload-csv`, {
+      const uploadResponse = await fetch(`${API_URL}/api/upload-csv`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -122,19 +126,41 @@ export function CsvUploader({ accountId, onUploadComplete }: CsvUploaderProps) {
         }),
       })
 
-      if (!response.ok) {
-        const err = await response.json()
+      if (!uploadResponse.ok) {
+        const err = await uploadResponse.json()
         throw new Error(err.detail || 'Upload failed')
       }
 
-      const res = await response.json()
-      setResult(res)
+      const uploadRes = await uploadResponse.json()
+      setUploadResult(uploadRes)
+
+      // Step 2: Train models (chained, not joined)
+      setStep('training')
+      
+      const trainResponse = await fetch(`${API_URL}/api/train-models/${accountId}`, {
+        method: 'POST',
+      })
+
+      if (!trainResponse.ok) {
+        const err = await trainResponse.json()
+        throw new Error(err.detail || 'Model training failed')
+      }
+
+      const trainRes = await trainResponse.json()
+      setTrainResult(trainRes)
+      
+      // Step 3: Done - redirect to dashboard
       setStep('done')
       onUploadComplete()
+      
+      // Auto-redirect after brief delay
+      setTimeout(() => {
+        router.push('/')
+      }, 2000)
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
-    } finally {
-      setUploading(false)
+      setStep('confirm') // Go back to confirm step on error
     }
   }
 
@@ -144,7 +170,8 @@ export function CsvUploader({ accountId, onUploadComplete }: CsvUploaderProps) {
     setMapping({})
     setStep('upload')
     setError(null)
-    setResult(null)
+    setUploadResult(null)
+    setTrainResult(null)
   }
 
   return (
@@ -272,25 +299,49 @@ export function CsvUploader({ accountId, onUploadComplete }: CsvUploaderProps) {
             </button>
             <button
               onClick={handleUpload}
-              disabled={uploading}
-              className="px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700"
             >
-              {uploading ? 'Uploading...' : `Upload ${csvData.length} rows`}
+              Upload {csvData.length} rows
             </button>
           </div>
         </div>
       )}
 
-      {step === 'done' && result && (
+      {step === 'uploading' && (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg font-medium text-gray-900">Uploading Data...</p>
+          <p className="text-gray-500 text-sm mt-1">Saving {csvData.length} rows to database</p>
+        </div>
+      )}
+
+      {step === 'training' && (
+        <div className="text-center py-12">
+          <div className="animate-pulse text-5xl mb-4">🧠</div>
+          <p className="text-lg font-medium text-gray-900">Calibrating AI Models...</p>
+          <p className="text-gray-500 text-sm mt-1">Fitting diminishing returns curves for each channel</p>
+          {uploadResult && (
+            <p className="text-green-600 text-sm mt-3">✓ {uploadResult.inserted} rows uploaded</p>
+          )}
+        </div>
+      )}
+
+      {step === 'done' && (
         <div className="text-center py-8">
-          <div className="text-green-600 text-4xl mb-4">✓</div>
-          <p className="text-lg font-medium text-gray-900">Upload Complete</p>
-          <p className="text-gray-600 mt-1">{result.inserted} rows inserted</p>
+          <div className="text-green-600 text-5xl mb-4">✓</div>
+          <p className="text-lg font-medium text-gray-900">All Done!</p>
+          {uploadResult && (
+            <p className="text-gray-600 mt-1">{uploadResult.inserted} rows uploaded</p>
+          )}
+          {trainResult && (
+            <p className="text-gray-600">{trainResult.models_fitted} models calibrated</p>
+          )}
+          <p className="text-blue-600 text-sm mt-4">Redirecting to dashboard...</p>
           <button
-            onClick={reset}
-            className="mt-6 px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            onClick={() => router.push('/')}
+            className="mt-4 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
           >
-            Upload More Data
+            Go now
           </button>
         </div>
       )}

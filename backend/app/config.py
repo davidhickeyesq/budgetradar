@@ -2,9 +2,16 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
+from typing import Literal
+
+
 class Settings(BaseSettings):
     supabase_url: str
     supabase_service_key: str
+    
+    # Optimization target: "revenue" (ROAS-based) or "conversions" (CPA-based)
+    # MVP defaults to "revenue" since that's what CSV contains
+    optimization_target: Literal["revenue", "conversions"] = "revenue"
     
     min_data_days: int = 21
     marginal_increment: float = 0.10
