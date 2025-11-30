@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { TrendingUp } from 'lucide-react'
 import { TrafficLightRadar } from '@/components/TrafficLightRadar'
 import { ScenarioPlanner } from '@/components/ScenarioPlanner'
 import { analyzeChannels, MarginalCpaResult } from '@/lib/api'
@@ -76,38 +78,46 @@ export default function Home() {
           <div className="flex rounded-lg overflow-hidden border border-gray-300">
             <button
               onClick={() => setOptimizationGoal('revenue')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                optimizationGoal === 'revenue'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${optimizationGoal === 'revenue'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
             >
               Max Revenue
             </button>
             <button
               onClick={() => setOptimizationGoal('conversions')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                optimizationGoal === 'conversions'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${optimizationGoal === 'conversions'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
             >
               Max Leads
             </button>
           </div>
         </div>
         <span className="text-xs text-gray-500">
-          {modeLabel === 'ROAS Mode' 
-            ? 'Green = Profitable (ROAS > 1.1)' 
+          {modeLabel === 'ROAS Mode'
+            ? 'Green = Profitable (ROAS > 1.1)'
             : 'Green = Below target CPA'}
         </span>
       </div>
-      
+
+      <div className="flex justify-end mb-6">
+        <Link
+          href="/simulator"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+        >
+          <TrendingUp className="w-4 h-4" />
+          Open Scenario Planner
+        </Link>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <TrafficLightRadar 
-            channels={channels} 
-            targetCpa={TARGET_CPA} 
+          <TrafficLightRadar
+            channels={channels}
+            targetCpa={TARGET_CPA}
             optimizationMode={optimizationGoal}
           />
         </div>
@@ -115,10 +125,10 @@ export default function Home() {
           <SummaryCard channels={channels} optimizationMode={optimizationGoal} />
         </div>
       </div>
-      
-      <ScenarioPlanner 
-        channels={channels} 
-        accountId={ACCOUNT_ID} 
+
+      <ScenarioPlanner
+        channels={channels}
+        accountId={ACCOUNT_ID}
         optimizationMode={optimizationGoal}
       />
     </div>

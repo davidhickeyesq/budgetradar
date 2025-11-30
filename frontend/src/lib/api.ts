@@ -70,6 +70,10 @@ export interface ChannelProjection {
   current_revenue: number
   projected_revenue: number
   delta_revenue: number
+  marginal_roas: number
+  traffic_light: string
+  r_squared: number
+  warning?: string
   has_model: boolean
 }
 

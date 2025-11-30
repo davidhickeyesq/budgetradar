@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 
 from app.services.supabase_client import get_model_params, get_current_spend
 from app.services.hill_function import predict_revenue, HillFitResult
@@ -24,6 +25,10 @@ class ChannelProjection(BaseModel):
     current_revenue: float
     projected_revenue: float
     delta_revenue: float
+    marginal_roas: float
+    traffic_light: str
+    r_squared: float
+    warning: Optional[str] = None
     has_model: bool
 
 
@@ -60,6 +65,10 @@ async def simulate_scenario(request: SimulateScenarioRequest):
                 current_revenue=0,
                 projected_revenue=0,
                 delta_revenue=0,
+                marginal_roas=0,
+                traffic_light="grey",
+                r_squared=0,
+                warning="No model available",
                 has_model=False,
             ))
             continue
@@ -76,6 +85,22 @@ async def simulate_scenario(request: SimulateScenarioRequest):
         current_revenue = predict_revenue(current_spend, fit_result)
         projected_revenue = predict_revenue(proposed_spend, fit_result)
         
+        # Calculate marginal metrics for the PROPOSED spend
+        # We use a small increment (e.g. 10%) to see the direction at that point
+        from app.services.hill_function import calculate_marginal_cpa, get_traffic_light
+        
+        marginal_cpa = calculate_marginal_cpa(proposed_spend, fit_result)
+        traffic_light = get_traffic_light(marginal_cpa, target_cpa=50.0, optimization_target="revenue")
+        
+        marginal_roas = 0.0
+        if marginal_cpa and marginal_cpa > 0 and marginal_cpa < 9999:
+            marginal_roas = 1.0 / marginal_cpa
+            
+        warning = None
+        if params.r_squared < 0.3:
+            traffic_light = "grey"
+            warning = "Model uncertain (R² < 0.3)"
+        
         projections.append(ChannelProjection(
             channel_name=channel_name,
             current_spend=current_spend,
@@ -83,6 +108,10 @@ async def simulate_scenario(request: SimulateScenarioRequest):
             current_revenue=current_revenue,
             projected_revenue=projected_revenue,
             delta_revenue=projected_revenue - current_revenue,
+            marginal_roas=marginal_roas,
+            traffic_light=traffic_light,
+            r_squared=params.r_squared,
+            warning=warning,
             has_model=True,
         ))
     
