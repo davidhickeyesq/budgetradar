@@ -174,6 +174,39 @@ async def save_scenario(request: SaveScenarioRequest):
         raise HTTPException(status_code=500, detail=f"Failed to save scenario: {str(e)}")
 
 
+@router.put("/update-scenario/{scenario_id}")
+async def update_scenario(scenario_id: str, request: SaveScenarioRequest):
+    """
+    Update an existing budget allocation scenario.
+    """
+    # Convert allocations to JSONB format
+    budget_allocation = [
+        {"channel_name": a.channel_name, "spend": a.spend}
+        for a in request.allocations
+    ]
+    
+    try:
+        client = get_supabase_client()
+        # Verify ownership (optional but good practice, though we trust account_id from request for now)
+        # In a real app we'd check if the scenario belongs to the account_id
+        
+        result = client.table("scenarios").update({
+            "name": request.name,
+            "description": request.description,
+            "budget_allocation": budget_allocation,
+            "updated_at": datetime.now().isoformat(),
+        }).eq("id", scenario_id).eq("account_id", request.account_id).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Scenario not found or access denied")
+            
+        return {"success": True, "scenario_id": scenario_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update scenario: {str(e)}")
+
+
 @router.get("/scenarios/{account_id}")
 async def get_saved_scenarios(account_id: str):
     """

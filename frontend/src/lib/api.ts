@@ -152,6 +152,33 @@ export async function saveScenario(
   return response.json()
 }
 
+export async function updateScenario(
+  scenarioId: string,
+  accountId: string,
+  name: string,
+  allocations: ChannelAllocation[],
+  description?: string
+): Promise<{ success: boolean; scenario_id: string }> {
+  const response = await fetch(`${API_URL}/api/update-scenario/${scenarioId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      account_id: accountId,
+      name,
+      description,
+      allocations,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`)
+  }
+
+  return response.json()
+}
+
 export async function getSavedScenarios(
   accountId: string
 ): Promise<{ scenarios: SavedScenario[] }> {
