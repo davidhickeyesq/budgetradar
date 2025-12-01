@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Card, Title, Text, Flex, Badge } from '@tremor/react'
-import { simulateScenario, saveScenario, ChannelProjection, ChannelAllocation } from '@/lib/api'
+import { simulateScenario, saveScenario, updateScenario, getSavedScenarios, ChannelProjection, ChannelAllocation, SavedScenario } from '@/lib/api'
 import type { ChannelMetrics, OptimizationMode } from '@/types'
 
 interface ScenarioPlannerProps {
@@ -32,6 +32,11 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [scenarioName, setScenarioName] = useState('')
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [showLoadModal, setShowLoadModal] = useState(false)
+  const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([])
+  const [loadingScenarios, setLoadingScenarios] = useState(false)
+  const [currentScenarioId, setCurrentScenarioId] = useState<string | null>(null)
+  const [showSaveDropdown, setShowSaveDropdown] = useState(false)
 
   useEffect(() => {
     const initialSliders = channels
@@ -87,7 +92,32 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
     setSliders(prev => prev.map(s => ({ ...s, proposed_spend: s.current_spend })))
   }
 
-  const handleSaveScenario = async () => {
+  const handleSaveScenario = async (isSaveAs: boolean = false) => {
+    // If it's a simple save and we have a current scenario, update it
+    if (!isSaveAs && currentScenarioId) {
+      try {
+        const allocations = sliders.map(s => ({
+          channel_name: s.channel_name,
+          spend: s.proposed_spend,
+        }))
+
+        // Find current scenario name to preserve it (or we could ask user, but "Save" usually implies quick save)
+        const currentScenario = savedScenarios.find(s => s.id === currentScenarioId)
+        const nameToUse = currentScenario?.name || 'Untitled Scenario'
+
+        await updateScenario(currentScenarioId, accountId, nameToUse, allocations)
+        setSaveMessage({ type: 'success', text: 'Scenario updated successfully!' })
+        fetchScenarios() // Refresh list to update timestamps/data
+        setTimeout(() => setSaveMessage(null), 3000)
+        return
+      } catch (err) {
+        console.error('Failed to update scenario:', err)
+        setSaveMessage({ type: 'error', text: 'Failed to update scenario' })
+        return
+      }
+    }
+
+    // Otherwise (Save As or no current scenario), open modal
     if (!scenarioName.trim()) {
       setSaveMessage({ type: 'error', text: 'Please enter a scenario name' })
       return
@@ -99,10 +129,14 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
         spend: s.proposed_spend,
       }))
 
-      await saveScenario(accountId, scenarioName, allocations)
+      const result = await saveScenario(accountId, scenarioName, allocations)
       setSaveMessage({ type: 'success', text: 'Scenario saved successfully!' })
       setShowSaveModal(false)
       setScenarioName('')
+      setCurrentScenarioId(result.scenario_id) // Switch context to new scenario
+
+      // Always refresh list to ensure it's up to date
+      fetchScenarios()
 
       // Clear success message after 3 seconds
       setTimeout(() => setSaveMessage(null), 3000)
@@ -110,6 +144,58 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
       console.error('Failed to save scenario:', err)
       setSaveMessage({ type: 'error', text: 'Failed to save scenario' })
     }
+  }
+
+  const fetchScenarios = useCallback(async () => {
+    setLoadingScenarios(true)
+    try {
+      const result = await getSavedScenarios(accountId)
+      setSavedScenarios(result.scenarios)
+    } catch (err) {
+      console.error('Failed to fetch scenarios:', err)
+    } finally {
+      setLoadingScenarios(false)
+    }
+  }, [accountId])
+
+  // Prefetch scenarios on mount or account change
+  useEffect(() => {
+    fetchScenarios()
+  }, [fetchScenarios])
+
+  const handleLoadScenario = (scenario: SavedScenario) => {
+    // 1. Identify "Ghost Channels" (channels in saved scenario that don't exist currently)
+    const currentChannelNames = new Set(channels.map(c => c.channelName))
+    const ghostChannels = scenario.budget_allocation.filter(
+      a => !currentChannelNames.has(a.channel_name)
+    )
+
+    // 2. Warn user if channels were dropped
+    if (ghostChannels.length > 0) {
+      const droppedNames = ghostChannels.map(c => c.channel_name).join(', ')
+      setSaveMessage({
+        type: 'error', // Using error style for visibility, or could add a 'warning' type
+        text: `Warning: ${ghostChannels.length} channel(s) not loaded: ${droppedNames}`
+      })
+      // Clear warning after 5 seconds (longer read time)
+      setTimeout(() => setSaveMessage(null), 5000)
+    }
+
+    // 3. Create map of VALID allocations only
+    const allocationMap = new Map(
+      scenario.budget_allocation
+        .filter(a => currentChannelNames.has(a.channel_name))
+        .map(a => [a.channel_name, a.spend])
+    )
+
+    // Update sliders with saved values, keeping current_spend from existing data
+    setSliders(prev => prev.map(s => ({
+      ...s,
+      proposed_spend: allocationMap.get(s.channel_name) ?? s.current_spend
+    })))
+
+    setCurrentScenarioId(scenario.id)
+    setShowLoadModal(false)
   }
 
   const getProjection = (channelName: string) => {
@@ -146,11 +232,54 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
             Reset to Current
           </button>
           <button
-            onClick={() => setShowSaveModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => {
+              fetchScenarios()
+              setShowLoadModal(true)
+            }}
+            className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
           >
-            Save Scenario
+            Load Scenario
           </button>
+
+
+          <div className="relative">
+            <div className="flex rounded-lg shadow-sm">
+              <button
+                onClick={() => {
+                  if (currentScenarioId) {
+                    handleSaveScenario(false)
+                  } else {
+                    setShowSaveModal(true)
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-l-lg hover:bg-blue-700 transition-colors border-r border-blue-700"
+              >
+                {currentScenarioId ? 'Save' : 'Save Scenario'}
+              </button>
+              <button
+                onClick={() => setShowSaveDropdown(!showSaveDropdown)}
+                className="px-2 py-2 bg-blue-600 text-white text-sm font-medium rounded-r-lg hover:bg-blue-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+
+            {showSaveDropdown && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-10">
+                <button
+                  onClick={() => {
+                    setShowSaveModal(true)
+                    setShowSaveDropdown(false)
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Save As...
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </Flex>
 
@@ -321,7 +450,7 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
               autoFocus
               onKeyPress={(e) => {
                 if (e.key === 'Enter') {
-                  handleSaveScenario()
+                  handleSaveScenario(true)
                 }
               }}
             />
@@ -340,10 +469,68 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
                 Cancel
               </button>
               <button
-                onClick={handleSaveScenario}
+                onClick={() => handleSaveScenario(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Load Scenario Modal */}
+      {showLoadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Load Scenario</h3>
+              <button
+                onClick={() => setShowLoadModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              {loadingScenarios ? (
+                <div className="text-center py-8 text-gray-500">Loading scenarios...</div>
+              ) : savedScenarios.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No saved scenarios found.</div>
+              ) : (
+                <div className="space-y-3">
+                  {savedScenarios.map(scenario => (
+                    <div
+                      key={scenario.id}
+                      className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => handleLoadScenario(scenario)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium text-gray-900">{scenario.name}</h4>
+                          <p className="text-sm text-gray-500">
+                            {new Date(scenario.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="text-right text-sm">
+                          <div className="text-gray-900 font-medium">
+                            {scenario.budget_allocation.length} channels
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 pt-4 border-t flex justify-end">
+              <button
+                onClick={() => setShowLoadModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Close
               </button>
             </div>
           </div>
