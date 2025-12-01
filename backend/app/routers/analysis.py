@@ -7,7 +7,10 @@ from app.models.schemas import (
     ChannelAnalysisRequest,
     ChannelAnalysisResponse,
     MarginalCpaResult,
+    MarginalCpaResult,
     HillParameters,
+    ModelQualityRequest,
+    ModelQualityResponse,
 )
 from app.services.hill_function import (
     fit_hill_model,
@@ -21,7 +24,10 @@ from app.services.supabase_client import (
     fetch_channels_for_account,
     get_current_spend,
     save_model_params,
+    fetch_chart_data,
+    get_model_params,
 )
+from app.services.math_engine import generate_predicted_history
 
 router = APIRouter(prefix="/api", tags=["analysis"])
 
@@ -184,3 +190,43 @@ async def analyze_channels(request: ChannelAnalysisRequest):
 @router.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@router.post("/model-quality", response_model=ModelQualityResponse)
+async def get_model_quality(request: ModelQualityRequest):
+    """
+    Get data for the Trust Battery chart (Model Fit).
+    Returns dates, actual revenue, and predicted revenue based on saved parameters.
+    """
+    try:
+        # 1. Fetch chart data (dates, spend, revenue)
+        dates, spend, revenue = fetch_chart_data(request.account_id, request.channel_name)
+        
+        if not dates:
+            raise HTTPException(status_code=404, detail="No data found for this channel")
+        
+        # 2. Fetch saved model parameters
+        params = get_model_params(request.account_id, request.channel_name)
+        
+        if not params or params.status != "success":
+            # If no model, return actuals with empty predictions
+            return ModelQualityResponse(
+                dates=dates,
+                actual_values=revenue,
+                predicted_values=[],
+                metrics={"r_squared": 0.0}
+            )
+        
+        # 3. Generate predicted values
+        predicted_values = generate_predicted_history(spend, params)
+        
+        return ModelQualityResponse(
+            dates=dates,
+            actual_values=revenue,
+            predicted_values=predicted_values,
+            metrics={"r_squared": params.r_squared}
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))

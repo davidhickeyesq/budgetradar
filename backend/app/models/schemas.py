@@ -51,3 +51,16 @@ class ChannelAnalysisResponse(BaseModel):
     channels: list[MarginalCpaResult]
     optimization_mode: Literal["revenue", "conversions"] = "revenue"
     mode_label: str = "ROAS Mode"
+
+
+class ModelQualityRequest(BaseModel):
+    account_id: str
+    channel_name: str
+
+
+class ModelQualityResponse(BaseModel):
+    dates: list[date]
+    actual_values: list[float]
+    predicted_values: list[float]
+    metrics: dict[str, float]  # e.g., {"r_squared": 0.85}
+

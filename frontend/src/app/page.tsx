@@ -119,6 +119,7 @@ export default function Home() {
             channels={channels}
             targetCpa={TARGET_CPA}
             optimizationMode={optimizationGoal}
+            accountId={ACCOUNT_ID}
           />
         </div>
         <div className="space-y-6">
