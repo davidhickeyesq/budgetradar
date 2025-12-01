@@ -8,7 +8,7 @@ import { ScenarioPlanner } from '@/components/ScenarioPlanner'
 import { analyzeChannels, MarginalCpaResult } from '@/lib/api'
 import type { ChannelMetrics } from '@/types'
 
-const ACCOUNT_ID = 'a8465a7b-bf39-4352-9658-4f1b8d05b381'
+const ACCOUNT_ID = 'e2ab9768-4b4c-4795-994c-09d52913dd2e'
 const TARGET_CPA = 50
 
 function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
@@ -119,6 +119,7 @@ export default function Home() {
             channels={channels}
             targetCpa={TARGET_CPA}
             optimizationMode={optimizationGoal}
+            accountId={ACCOUNT_ID}
           />
         </div>
         <div className="space-y-6">

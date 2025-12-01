@@ -41,6 +41,34 @@ def fetch_daily_metrics(
     return spend, revenue
 
 
+def fetch_chart_data(
+    account_id: str,
+    channel_name: str,
+) -> tuple[list[date], list[float], list[float]]:
+    """
+    Fetch daily dates, spend, and revenue for a channel, ordered by date.
+    Returns (dates, spend, revenue)
+    """
+    client = get_supabase_client()
+    
+    response = client.table("daily_metrics").select(
+        "date, spend, revenue"
+    ).eq(
+        "account_id", account_id
+    ).eq(
+        "channel_name", channel_name
+    ).order("date").execute()
+    
+    if not response.data:
+        return [], [], []
+    
+    dates = [date.fromisoformat(row["date"]) for row in response.data]
+    spend = [float(row["spend"] or 0) for row in response.data]
+    revenue = [float(row["revenue"] or 0) for row in response.data]
+    
+    return dates, spend, revenue
+
+
 def fetch_channels_for_account(account_id: str) -> list[str]:
     """Get all unique channel names for an account."""
     client = get_supabase_client()
