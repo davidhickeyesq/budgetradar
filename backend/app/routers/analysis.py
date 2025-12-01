@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
+from app.config import get_settings
 from app.models.schemas import (
     FitModelRequest,
     FitModelResponse,
@@ -71,13 +72,15 @@ async def fit_model(request: FitModelRequest):
         kappa=fit_result.kappa,
         max_yield=fit_result.max_yield,
         r_squared=fit_result.r_squared,
+        status=fit_result.status,
     )
     
     save_model_params(request.account_id, request.channel_name, params)
     
+    settings = get_settings()
     current_spend = get_current_spend(request.account_id, request.channel_name)
     marginal_cpa = calculate_marginal_cpa(current_spend, fit_result)
-    traffic_light = get_traffic_light(marginal_cpa, request.target_cpa)
+    traffic_light = get_traffic_light(marginal_cpa, request.target_cpa, settings.optimization_target)
     
     return FitModelResponse(
         success=True,
@@ -97,8 +100,10 @@ async def fit_model(request: FitModelRequest):
 @router.post("/analyze-channels", response_model=ChannelAnalysisResponse)
 async def analyze_channels(request: ChannelAnalysisRequest):
     """
-    Analyze all channels for an account and return marginal CPA + traffic lights.
+    Analyze all channels for an account and return marginal efficiency + traffic lights.
+    Uses ROAS-based logic when optimization_goal=revenue, CPA-based when optimization_goal=conversions.
     """
+    optimization_target = request.optimization_goal
     channels = fetch_channels_for_account(request.account_id)
     
     if not channels:
@@ -119,6 +124,13 @@ async def analyze_channels(request: ChannelAnalysisRequest):
             total_revenue = float(revenue.sum())
             avg_cpa = float(spend.sum()) / total_revenue if total_revenue > 0 else None
             
+            if fit_result and "insufficient_data" in fit_result.status:
+                grey_reason = "insufficient_data"
+            elif fit_result and "R²" in fit_result.status:
+                grey_reason = "low_r_squared"
+            else:
+                grey_reason = "fit_failed"
+            
             results.append(MarginalCpaResult(
                 channel_name=channel_name,
                 current_spend=current_spend,
@@ -127,6 +139,7 @@ async def analyze_channels(request: ChannelAnalysisRequest):
                 traffic_light="grey",
                 recommendation=get_recommendation("grey"),
                 model_params=None,
+                grey_reason=grey_reason,
             ))
             continue
         
@@ -136,12 +149,13 @@ async def analyze_channels(request: ChannelAnalysisRequest):
             kappa=fit_result.kappa,
             max_yield=fit_result.max_yield,
             r_squared=fit_result.r_squared,
+            status=fit_result.status,
         )
         
         save_model_params(request.account_id, channel_name, params)
         
         marginal_cpa = calculate_marginal_cpa(current_spend, fit_result)
-        traffic_light = get_traffic_light(marginal_cpa, request.target_cpa)
+        traffic_light = get_traffic_light(marginal_cpa, request.target_cpa, optimization_target)
         
         results.append(MarginalCpaResult(
             channel_name=channel_name,
@@ -158,7 +172,13 @@ async def analyze_channels(request: ChannelAnalysisRequest):
         x.marginal_cpa or float("inf")
     ))
     
-    return ChannelAnalysisResponse(channels=results)
+    mode_label = "ROAS Mode" if optimization_target == "revenue" else "CPA Mode"
+    
+    return ChannelAnalysisResponse(
+        channels=results,
+        optimization_mode=optimization_target,
+        mode_label=mode_label,
+    )
 
 
 @router.get("/health")

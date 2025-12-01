@@ -97,6 +97,7 @@ def save_model_params(
         "kappa": params.kappa,
         "max_yield": params.max_yield,
         "r_squared": params.r_squared,
+        "status": params.status,
     }
     
     if existing.data:
@@ -115,7 +116,7 @@ def get_model_params(
     client = get_supabase_client()
     
     response = client.table("mmm_models").select(
-        "alpha, beta, kappa, max_yield, r_squared"
+        "alpha, beta, kappa, max_yield, r_squared, status"
     ).eq(
         "account_id", account_id
     ).eq(
@@ -132,4 +133,5 @@ def get_model_params(
         kappa=row["kappa"],
         max_yield=row["max_yield"],
         r_squared=row["r_squared"],
+        status=row.get("status", "success"),
     )
