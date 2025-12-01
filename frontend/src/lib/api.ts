@@ -70,6 +70,10 @@ export interface ChannelProjection {
   current_revenue: number
   projected_revenue: number
   delta_revenue: number
+  marginal_roas: number
+  traffic_light: string
+  r_squared: number
+  warning?: string
   has_model: boolean
 }
 
@@ -97,6 +101,61 @@ export async function simulateScenario(
       allocations,
     }),
   })
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export interface SaveScenarioRequest {
+  account_id: string
+  name: string
+  description?: string
+  allocations: ChannelAllocation[]
+}
+
+export interface SavedScenario {
+  id: string
+  account_id: string
+  name: string
+  description: string | null
+  budget_allocation: ChannelAllocation[]
+  created_at: string
+  updated_at: string
+}
+
+export async function saveScenario(
+  accountId: string,
+  name: string,
+  allocations: ChannelAllocation[],
+  description?: string
+): Promise<{ success: boolean; scenario_id: string }> {
+  const response = await fetch(`${API_URL}/api/save-scenario`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      account_id: accountId,
+      name,
+      description,
+      allocations,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export async function getSavedScenarios(
+  accountId: string
+): Promise<{ scenarios: SavedScenario[] }> {
+  const response = await fetch(`${API_URL}/api/scenarios/${accountId}`)
 
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`)

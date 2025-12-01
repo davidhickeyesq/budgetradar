@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
 
-from app.services.supabase_client import get_model_params, get_current_spend
+from app.services.supabase_client import get_model_params, get_current_spend, get_supabase_client
 from app.services.hill_function import predict_revenue, HillFitResult
 
 router = APIRouter(prefix="/api", tags=["scenarios"])
@@ -24,6 +26,10 @@ class ChannelProjection(BaseModel):
     current_revenue: float
     projected_revenue: float
     delta_revenue: float
+    marginal_roas: float
+    traffic_light: str
+    r_squared: float
+    warning: Optional[str] = None
     has_model: bool
 
 
@@ -60,6 +66,10 @@ async def simulate_scenario(request: SimulateScenarioRequest):
                 current_revenue=0,
                 projected_revenue=0,
                 delta_revenue=0,
+                marginal_roas=0,
+                traffic_light="grey",
+                r_squared=0,
+                warning="No model available",
                 has_model=False,
             ))
             continue
@@ -76,6 +86,22 @@ async def simulate_scenario(request: SimulateScenarioRequest):
         current_revenue = predict_revenue(current_spend, fit_result)
         projected_revenue = predict_revenue(proposed_spend, fit_result)
         
+        # Calculate marginal metrics for the PROPOSED spend
+        # We use a small increment (e.g. 10%) to see the direction at that point
+        from app.services.hill_function import calculate_marginal_cpa, get_traffic_light
+        
+        marginal_cpa = calculate_marginal_cpa(proposed_spend, fit_result)
+        traffic_light = get_traffic_light(marginal_cpa, target_cpa=50.0, optimization_target="revenue")
+        
+        marginal_roas = 0.0
+        if marginal_cpa and marginal_cpa > 0 and marginal_cpa < 9999:
+            marginal_roas = 1.0 / marginal_cpa
+            
+        warning = None
+        if params.r_squared < 0.3:
+            traffic_light = "grey"
+            warning = "Model uncertain (R² < 0.3)"
+        
         projections.append(ChannelProjection(
             channel_name=channel_name,
             current_spend=current_spend,
@@ -83,6 +109,10 @@ async def simulate_scenario(request: SimulateScenarioRequest):
             current_revenue=current_revenue,
             projected_revenue=projected_revenue,
             delta_revenue=projected_revenue - current_revenue,
+            marginal_roas=marginal_roas,
+            traffic_light=traffic_light,
+            r_squared=params.r_squared,
+            warning=warning,
             has_model=True,
         ))
     
@@ -100,3 +130,74 @@ async def simulate_scenario(request: SimulateScenarioRequest):
         delta_revenue=total_projected_revenue - total_current_revenue,
         delta_spend=total_proposed_spend - total_current_spend,
     )
+
+
+class SaveScenarioRequest(BaseModel):
+    account_id: str
+    name: str
+    description: Optional[str] = None
+    allocations: list[ChannelAllocation]
+
+
+class SavedScenario(BaseModel):
+    id: str
+    account_id: str
+    name: str
+    description: Optional[str]
+    budget_allocation: list[ChannelAllocation]
+    created_at: str
+    updated_at: str
+
+
+@router.post("/save-scenario")
+async def save_scenario(request: SaveScenarioRequest):
+    """
+    Save a budget allocation scenario for later comparison.
+    """
+    # Convert allocations to JSONB format
+    budget_allocation = [
+        {"channel_name": a.channel_name, "spend": a.spend}
+        for a in request.allocations
+    ]
+    
+    try:
+        client = get_supabase_client()
+        result = client.table("scenarios").insert({
+            "account_id": request.account_id,
+            "name": request.name,
+            "description": request.description,
+            "budget_allocation": budget_allocation,
+        }).execute()
+        
+        return {"success": True, "scenario_id": result.data[0]["id"]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save scenario: {str(e)}")
+
+
+@router.get("/scenarios/{account_id}")
+async def get_saved_scenarios(account_id: str):
+    """
+    Get all saved scenarios for an account.
+    """
+    try:
+        client = get_supabase_client()
+        result = client.table("scenarios").select("*").eq("account_id", account_id).order("created_at", desc=True).execute()
+        
+        scenarios = []
+        for row in result.data:
+            scenarios.append(SavedScenario(
+                id=row["id"],
+                account_id=row["account_id"],
+                name=row["name"],
+                description=row.get("description"),
+                budget_allocation=[
+                    ChannelAllocation(channel_name=a["channel_name"], spend=a["spend"])
+                    for a in row["budget_allocation"]
+                ],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+            ))
+        
+        return {"scenarios": scenarios}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch scenarios: {str(e)}")

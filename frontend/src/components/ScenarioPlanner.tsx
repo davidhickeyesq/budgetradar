@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Card, Title, Text, Flex, Badge } from '@tremor/react'
-import { simulateScenario, ChannelProjection, ChannelAllocation } from '@/lib/api'
+import { simulateScenario, saveScenario, ChannelProjection, ChannelAllocation } from '@/lib/api'
 import type { ChannelMetrics, OptimizationMode } from '@/types'
 
 interface ScenarioPlannerProps {
@@ -29,6 +29,9 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
     delta_spend: 0,
   })
   const [loading, setLoading] = useState(false)
+  const [showSaveModal, setShowSaveModal] = useState(false)
+  const [scenarioName, setScenarioName] = useState('')
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     const initialSliders = channels
@@ -44,7 +47,7 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
 
   const runSimulation = useCallback(async (allocations: ChannelAllocation[]) => {
     if (allocations.length === 0) return
-    
+
     setLoading(true)
     try {
       const result = await simulateScenario(accountId, allocations)
@@ -73,8 +76,8 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
   }, [sliders, runSimulation])
 
   const handleSpendChange = (channelName: string, value: number) => {
-    setSliders(prev => prev.map(s => 
-      s.channel_name === channelName 
+    setSliders(prev => prev.map(s =>
+      s.channel_name === channelName
         ? { ...s, proposed_spend: value }
         : s
     ))
@@ -82,6 +85,31 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
 
   const resetToOriginal = () => {
     setSliders(prev => prev.map(s => ({ ...s, proposed_spend: s.current_spend })))
+  }
+
+  const handleSaveScenario = async () => {
+    if (!scenarioName.trim()) {
+      setSaveMessage({ type: 'error', text: 'Please enter a scenario name' })
+      return
+    }
+
+    try {
+      const allocations = sliders.map(s => ({
+        channel_name: s.channel_name,
+        spend: s.proposed_spend,
+      }))
+
+      await saveScenario(accountId, scenarioName, allocations)
+      setSaveMessage({ type: 'success', text: 'Scenario saved successfully!' })
+      setShowSaveModal(false)
+      setScenarioName('')
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSaveMessage(null), 3000)
+    } catch (err) {
+      console.error('Failed to save scenario:', err)
+      setSaveMessage({ type: 'error', text: 'Failed to save scenario' })
+    }
   }
 
   const getProjection = (channelName: string) => {
@@ -105,18 +133,33 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
         <div>
           <Title>{isRevenueMode ? 'Revenue Scenario Planner' : 'Lead Volume Planner'}</Title>
           <Text className="text-gray-500">
-            {isRevenueMode 
+            {isRevenueMode
               ? 'Adjust budgets to see projected revenue impact (ROAS-based)'
               : 'Adjust budgets to see projected lead volume at target CPA'}
           </Text>
         </div>
-        <button
-          onClick={resetToOriginal}
-          className="text-sm text-blue-600 hover:text-blue-800"
-        >
-          Reset to Current
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={resetToOriginal}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            Reset to Current
+          </button>
+          <button
+            onClick={() => setShowSaveModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Save Scenario
+          </button>
+        </div>
       </Flex>
+
+      {saveMessage && (
+        <div className={`mt-4 p-3 rounded-lg ${saveMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+          {saveMessage.text}
+        </div>
+      )}
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sliders.map(slider => {
@@ -124,11 +167,11 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
           const deltaRevenue = projection?.delta_revenue ?? 0
           const isPositive = deltaRevenue > 0
           const isNegative = deltaRevenue < 0
-          
+
           return (
             <div key={slider.channel_name} className="p-4 border rounded-lg bg-gray-50">
               <Text className="font-medium mb-2">{slider.channel_name}</Text>
-              
+
               <div className="mb-3">
                 <Flex justifyContent="between" className="mb-1">
                   <label className="text-xs text-gray-500">Daily Spend</label>
@@ -136,7 +179,7 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
                     ${slider.proposed_spend.toLocaleString()}
                   </span>
                 </Flex>
-                
+
                 <input
                   type="range"
                   min={0}
@@ -146,7 +189,7 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
                   onChange={(e) => handleSpendChange(slider.channel_name, Number(e.target.value))}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                 />
-                
+
                 <Flex justifyContent="between" className="mt-1">
                   <span className="text-xs text-gray-400">$0</span>
                   <span className="text-xs text-gray-400">
@@ -164,7 +207,7 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
                   <span>Change:</span>
                   <span className={
                     slider.proposed_spend > slider.current_spend ? 'text-blue-600' :
-                    slider.proposed_spend < slider.current_spend ? 'text-orange-600' : ''
+                      slider.proposed_spend < slider.current_spend ? 'text-orange-600' : ''
                   }>
                     {slider.proposed_spend >= slider.current_spend ? '+' : ''}
                     ${(slider.proposed_spend - slider.current_spend).toLocaleString()}
@@ -182,13 +225,13 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
                       const deltaSpend = slider.proposed_spend - slider.current_spend
                       const incrementalRoas = deltaSpend !== 0 ? deltaRevenue / deltaSpend : 0
                       const isProfitable = incrementalRoas >= 1.0
-                      const badgeColor = deltaRevenue === 0 ? 'gray' 
+                      const badgeColor = deltaRevenue === 0 ? 'gray'
                         : (isPositive && isProfitable) ? 'emerald'
-                        : (isPositive && !isProfitable) ? 'orange'
-                        : 'red'
+                          : (isPositive && !isProfitable) ? 'orange'
+                            : 'red'
                       return (
                         <Badge color={badgeColor} size="sm">
-                          {isRevenueMode 
+                          {isRevenueMode
                             ? `${isPositive ? '+' : ''}$${deltaRevenue.toFixed(0)}`
                             : `${isPositive ? '+' : ''}${Math.round(deltaRevenue / 50)} leads`}
                         </Badge>
@@ -213,13 +256,13 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
               const isProfitable = incrementalRoas >= 1.0
               const colorClass = totals.delta_revenue === 0 ? 'text-white'
                 : (totals.delta_revenue > 0 && isProfitable) ? 'text-emerald-400'
-                : (totals.delta_revenue > 0 && !isProfitable) ? 'text-orange-400'
-                : 'text-red-400'
+                  : (totals.delta_revenue > 0 && !isProfitable) ? 'text-orange-400'
+                    : 'text-red-400'
               const estimatedLeads = Math.round(totals.delta_revenue / 50)
               return (
                 <div className="flex items-baseline gap-4 mt-1">
                   <span className={`text-2xl font-bold ${colorClass}`}>
-                    {isRevenueMode 
+                    {isRevenueMode
                       ? `${totals.delta_revenue >= 0 ? '+' : ''}$${totals.delta_revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
                       : `${estimatedLeads >= 0 ? '+' : ''}${estimatedLeads.toLocaleString()} leads`}
                   </span>
@@ -250,20 +293,62 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
           </div>
           <div className="text-right">
             <Text className="text-gray-400 text-sm">Budget Change</Text>
-            <span className={`text-lg ${
-              totals.delta_spend > 0 ? 'text-blue-400' : 
+            <span className={`text-lg ${totals.delta_spend > 0 ? 'text-blue-400' :
               totals.delta_spend < 0 ? 'text-orange-400' : 'text-white'
-            }`}>
+              }`}>
               {totals.delta_spend >= 0 ? '+' : ''}
               ${totals.delta_spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </span>
           </div>
         </Flex>
-        
+
         {loading && (
           <Text className="text-gray-500 text-xs mt-2">Calculating...</Text>
         )}
       </div>
+
+      {/* Save Scenario Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Save Scenario</h3>
+            <input
+              type="text"
+              value={scenarioName}
+              onChange={(e) => setScenarioName(e.target.value)}
+              placeholder="Enter scenario name..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+              autoFocus
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleSaveScenario()
+                }
+              }}
+            />
+            {saveMessage?.type === 'error' && (
+              <p className="text-red-600 text-sm mb-4">{saveMessage.text}</p>
+            )}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowSaveModal(false)
+                  setScenarioName('')
+                  setSaveMessage(null)
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveScenario}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   )
 }
