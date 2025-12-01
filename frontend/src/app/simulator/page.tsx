@@ -12,7 +12,7 @@ import {
     type MarginalCpaResult
 } from '@/lib/api'
 
-const ACCOUNT_ID = 'a8465a7b-bf39-4352-9658-4f1b8d05b381'
+const ACCOUNT_ID = 'e2ab9768-4b4c-4795-994c-09d52913dd2e'
 
 export default function ScenarioPlannerPage() {
     const [loading, setLoading] = useState(true)
@@ -187,14 +187,14 @@ export default function ScenarioPlannerPage() {
                                     <div>
                                         <div className="text-xs text-gray-500 uppercase font-medium">Blended ROAS</div>
                                         <div className="text-xl font-bold text-gray-900 mt-1">
-                                            {data?.total_proposed_spend ? (data.total_projected_revenue / (data.total_proposed_spend * 30.4)).toFixed(2) : '0.00'}x
+                                            {data?.total_proposed_spend ? (data.total_projected_revenue / data.total_proposed_spend).toFixed(2) : '0.00'}x
                                         </div>
                                     </div>
-                                    <div className={`text-sm font-medium ${(data?.total_proposed_spend && (data.total_projected_revenue / (data.total_proposed_spend * 30.4)) >= 1.1)
+                                    <div className={`text-sm font-medium ${(data?.total_proposed_spend && (data.total_projected_revenue / data.total_proposed_spend) >= 1.1)
                                         ? 'text-emerald-600'
                                         : 'text-yellow-600'
                                         }`}>
-                                        {(data?.total_proposed_spend && (data.total_projected_revenue / (data.total_proposed_spend * 30.4)) >= 1.1)
+                                        {(data?.total_proposed_spend && (data.total_projected_revenue / data.total_proposed_spend) >= 1.1)
                                             ? 'Healthy'
                                             : 'Review'}
                                     </div>
