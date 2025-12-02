@@ -27,6 +27,7 @@ class MarginalCpaResult(BaseModel):
     recommendation: str
     model_params: Optional[HillParameters]
     grey_reason: Optional[str] = None
+    max_efficient_spend: Optional[float] = None
 
 
 class FitModelRequest(BaseModel):

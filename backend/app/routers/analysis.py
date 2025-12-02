@@ -18,6 +18,7 @@ from app.services.hill_function import (
     get_traffic_light,
     get_recommendation,
     HillFitResult,
+    calculate_max_efficient_spend,
 )
 from app.services.supabase_client import (
     fetch_daily_metrics,
@@ -163,6 +164,8 @@ async def analyze_channels(request: ChannelAnalysisRequest):
         marginal_cpa = calculate_marginal_cpa(current_spend, fit_result)
         traffic_light = get_traffic_light(marginal_cpa, request.target_cpa, optimization_target)
         
+        max_efficient_spend = calculate_max_efficient_spend(fit_result, target_roas=1.1)
+        
         results.append(MarginalCpaResult(
             channel_name=channel_name,
             current_spend=current_spend,
@@ -171,6 +174,7 @@ async def analyze_channels(request: ChannelAnalysisRequest):
             traffic_light=traffic_light,
             recommendation=get_recommendation(traffic_light),
             model_params=params,
+            max_efficient_spend=max_efficient_spend,
         ))
     
     results.sort(key=lambda x: (

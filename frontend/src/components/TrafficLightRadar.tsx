@@ -79,7 +79,7 @@ export function TrafficLightRadar({ channels, targetCpa, optimizationMode, accou
                 <h3 className="font-medium text-blue-900 mb-2">How to read this chart</h3>
                 <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
                   <li><strong>Solid Blue Line:</strong> Actual revenue generated.</li>
-                  <li><strong>Dashed Cyan Line:</strong> Predicted revenue by the model.</li>
+                  <li><strong>Cyan Line:</strong> Predicted revenue by the model.</li>
                   <li>If the lines track closely (high R²), the model "understands" this channel well.</li>
                   <li>Spikes in actuals that are missed by predictions may indicate external factors (seasonality, sales) not yet modeled.</li>
                 </ul>

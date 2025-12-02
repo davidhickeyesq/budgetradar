@@ -12,6 +12,7 @@ export interface ChannelMetrics {
   trafficLight: TrafficLight
   rSquared: number | null
   greyReason: GreyReason
+  maxEfficientSpend: number | null
 }
 
 export interface MarginalCpaResult {
@@ -21,13 +22,14 @@ export interface MarginalCpaResult {
   targetCpa: number
   trafficLight: TrafficLight
   recommendation: string
+  max_efficient_spend?: number | null
 }
 
 export function getTrafficLight(marginalCpa: number | null, targetCpa: number): TrafficLight {
   if (marginalCpa === null) return 'grey'
-  
+
   const ratio = marginalCpa / targetCpa
-  
+
   if (ratio < 0.9) return 'green'
   if (ratio <= 1.1) return 'yellow'
   return 'red'

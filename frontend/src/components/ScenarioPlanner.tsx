@@ -15,6 +15,7 @@ interface ChannelSlider {
   channel_name: string
   current_spend: number
   proposed_spend: number
+  maxEfficientSpend?: number | null
   has_model: boolean
 }
 
@@ -45,6 +46,7 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
         channel_name: c.channelName,
         current_spend: c.currentSpend,
         proposed_spend: c.currentSpend,
+        maxEfficientSpend: c.maxEfficientSpend,
         has_model: true,
       }))
     setSliders(initialSliders)
@@ -217,11 +219,11 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
     <Card className="mt-6">
       <Flex justifyContent="between" alignItems="center">
         <div>
-          <Title>{isRevenueMode ? 'Revenue Scenario Planner' : 'Lead Volume Planner'}</Title>
+          <Title>{isRevenueMode ? 'Revenue Scenario Planner' : 'Conversion Volume Planner'}</Title>
           <Text className="text-gray-500">
             {isRevenueMode
               ? 'Adjust budgets to see projected revenue impact (ROAS-based)'
-              : 'Adjust budgets to see projected lead volume at target CPA'}
+              : 'Adjust budgets to see projected conversion volume at target CPA'}
           </Text>
         </div>
         <div className="flex gap-3">
@@ -297,40 +299,74 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
           const isPositive = deltaRevenue > 0
           const isNegative = deltaRevenue < 0
 
+          // Calculate efficiency metrics for this channel
+          const deltaSpend = slider.proposed_spend - slider.current_spend
+          const incrementalRoas = deltaSpend !== 0 ? deltaRevenue / deltaSpend : 0
+          const isHighEfficiency = incrementalRoas >= 1.1 && deltaSpend > 0
+
           return (
             <div key={slider.channel_name} className="p-4 border rounded-lg bg-gray-50">
-              <Text className="font-medium mb-2">{slider.channel_name}</Text>
+              <div className="mb-3">
+                <Text className="font-medium">{slider.channel_name}</Text>
+                {isHighEfficiency && (
+                  <Badge color="emerald" size="sm" className="mt-1">
+                    High Efficiency 🚀
+                  </Badge>
+                )}
+              </div>
 
               <div className="mb-3">
                 <Flex justifyContent="between" className="mb-1">
                   <label className="text-xs text-gray-500">Daily Spend</label>
                   <span className="text-sm font-medium">
-                    ${slider.proposed_spend.toLocaleString()}
+                    ${slider.proposed_spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </span>
                 </Flex>
 
-                <input
-                  type="range"
-                  min={0}
-                  max={Math.max(slider.current_spend * 3, 10000)}
-                  step={100}
-                  value={slider.proposed_spend}
-                  onChange={(e) => handleSpendChange(slider.channel_name, Number(e.target.value))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                />
+                <div className="relative">
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(slider.current_spend * 3, 10000)}
+                    step={10}
+                    value={slider.proposed_spend}
+                    onChange={(e) => handleSpendChange(slider.channel_name, Number(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 relative z-10"
+                  />
+                  {/* Efficiency Marker */}
+                  {slider.maxEfficientSpend && (
+                    <div
+                      className="absolute top-0 w-1 h-2 bg-emerald-500 z-0 pointer-events-none"
+                      style={{
+                        left: `${Math.min((slider.maxEfficientSpend / Math.max(slider.current_spend * 3, 10000)) * 100, 100)}%`
+                      }}
+                      title={`Max Efficient Spend: $${slider.maxEfficientSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                    />
+                  )}
+                </div>
 
                 <Flex justifyContent="between" className="mt-1">
                   <span className="text-xs text-gray-400">$0</span>
-                  <span className="text-xs text-gray-400">
-                    ${Math.max(slider.current_spend * 3, 10000).toLocaleString()}
-                  </span>
+                  <div className="flex gap-2">
+                    {slider.maxEfficientSpend && (
+                      <button
+                        onClick={() => handleSpendChange(slider.channel_name, slider.maxEfficientSpend!)}
+                        className="text-xs text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
+                      >
+                        Set to Max Efficiency (${slider.maxEfficientSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })})
+                      </button>
+                    )}
+                    <span className="text-xs text-gray-400">
+                      ${Math.max(slider.current_spend * 3, 10000).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
                 </Flex>
               </div>
 
               <div className="text-xs text-gray-500 space-y-1">
                 <Flex justifyContent="between">
                   <span>Current:</span>
-                  <span>${slider.current_spend.toLocaleString()}</span>
+                  <span>${slider.current_spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </Flex>
                 <Flex justifyContent="between">
                   <span>Change:</span>
@@ -339,7 +375,7 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
                       slider.proposed_spend < slider.current_spend ? 'text-orange-600' : ''
                   }>
                     {slider.proposed_spend >= slider.current_spend ? '+' : ''}
-                    ${(slider.proposed_spend - slider.current_spend).toLocaleString()}
+                    ${(slider.proposed_spend - slider.current_spend).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </span>
                 </Flex>
               </div>
@@ -348,7 +384,7 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
                 <div className="mt-3 pt-3 border-t">
                   <Flex justifyContent="between" alignItems="center">
                     <Text className="text-xs text-gray-500">
-                      {isRevenueMode ? 'Revenue Impact:' : 'Est. Leads Impact:'}
+                      {isRevenueMode ? 'Revenue Impact:' : 'Est. Conversions Impact:'}
                     </Text>
                     {(() => {
                       const deltaSpend = slider.proposed_spend - slider.current_spend
@@ -362,7 +398,7 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
                         <Badge color={badgeColor} size="sm">
                           {isRevenueMode
                             ? `${isPositive ? '+' : ''}$${deltaRevenue.toFixed(0)}`
-                            : `${isPositive ? '+' : ''}${Math.round(deltaRevenue / 50)} leads`}
+                            : `${isPositive ? '+' : ''}${Math.round(deltaRevenue / 50)} conversions`}
                         </Badge>
                       )
                     })()}
@@ -378,7 +414,7 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
         <Flex justifyContent="between" alignItems="center">
           <div>
             <Text className="text-gray-400 text-sm">
-              {isRevenueMode ? 'Total Revenue Impact' : 'Total Lead Volume Impact'}
+              {isRevenueMode ? 'Total Revenue Impact' : 'Total Conversion Volume Impact'}
             </Text>
             {(() => {
               const incrementalRoas = totals.delta_spend !== 0 ? totals.delta_revenue / totals.delta_spend : 0
@@ -387,13 +423,13 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
                 : (totals.delta_revenue > 0 && isProfitable) ? 'text-emerald-400'
                   : (totals.delta_revenue > 0 && !isProfitable) ? 'text-orange-400'
                     : 'text-red-400'
-              const estimatedLeads = Math.round(totals.delta_revenue / 50)
+              const estimatedConversions = Math.round(totals.delta_revenue / 50)
               return (
                 <div className="flex items-baseline gap-4 mt-1">
                   <span className={`text-2xl font-bold ${colorClass}`}>
                     {isRevenueMode
                       ? `${totals.delta_revenue >= 0 ? '+' : ''}$${totals.delta_revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-                      : `${estimatedLeads >= 0 ? '+' : ''}${estimatedLeads.toLocaleString()} leads`}
+                      : `${estimatedConversions >= 0 ? '+' : ''}${estimatedConversions.toLocaleString()} conversions`}
                   </span>
                   <span className="text-gray-400 text-sm">
                     {isRevenueMode ? (
@@ -408,9 +444,9 @@ export function ScenarioPlanner({ channels, accountId, optimizationMode }: Scena
                     ) : (
                       <>
                         per day
-                        {totals.delta_spend !== 0 && estimatedLeads !== 0 && (
+                        {totals.delta_spend !== 0 && estimatedConversions !== 0 && (
                           <span className="text-gray-300">
-                            {' '}(${(totals.delta_spend / estimatedLeads).toFixed(0)} CPA)
+                            {' '}(${(totals.delta_spend / estimatedConversions).toFixed(0)} CPA)
                           </span>
                         )}
                       </>

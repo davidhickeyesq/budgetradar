@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { TrendingUp } from 'lucide-react'
 import { TrafficLightRadar } from '@/components/TrafficLightRadar'
 import { ScenarioPlanner } from '@/components/ScenarioPlanner'
 import { analyzeChannels, MarginalCpaResult } from '@/lib/api'
@@ -22,6 +21,7 @@ function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
     trafficLight: result.traffic_light,
     rSquared: result.model_params?.r_squared ?? null,
     greyReason: result.grey_reason,
+    maxEfficientSpend: result.max_efficient_spend ?? null,
   }
 }
 
@@ -92,7 +92,7 @@ export default function Home() {
                 : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
             >
-              Max Leads
+              Max Conversions
             </button>
           </div>
         </div>
@@ -103,15 +103,7 @@ export default function Home() {
         </span>
       </div>
 
-      <div className="flex justify-end mb-6">
-        <Link
-          href="/simulator"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-        >
-          <TrendingUp className="w-4 h-4" />
-          Open Scenario Planner
-        </Link>
-      </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">

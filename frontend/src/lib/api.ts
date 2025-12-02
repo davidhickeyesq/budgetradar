@@ -17,6 +17,7 @@ export interface MarginalCpaResult {
   recommendation: string
   model_params: HillParameters | null
   grey_reason: 'insufficient_data' | 'low_r_squared' | 'fit_failed' | null
+  max_efficient_spend?: number | null
 }
 
 export interface ChannelAnalysisResponse {

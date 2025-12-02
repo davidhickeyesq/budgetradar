@@ -258,3 +258,62 @@ def predict_revenue(spend: float, params: HillFitResult) -> float:
     )[0]
     
     return float(predicted)
+
+
+def calculate_max_efficient_spend(
+    params: HillFitResult,
+    target_roas: float = 1.1,
+    max_search_spend: float = 1000000.0
+) -> Optional[float]:
+    """
+    Calculate the maximum spend level where Marginal ROAS >= target_roas.
+    Uses binary search since Marginal ROAS is monotonically decreasing.
+    """
+    if params.status != "success":
+        return None
+        
+    # Marginal ROAS = 1 / Marginal CPA
+    # So 1 / Marginal CPA >= target_roas  =>  Marginal CPA <= 1 / target_roas
+    target_marginal_cpa = 1.0 / target_roas
+    
+    # Check for S-curve (beta > 1)
+    if params.beta > 1.0:
+        # Calculate inflection point (peak efficiency)
+        # Marginal product is maximized when second derivative is zero
+        # For Hill: x_infl = kappa * ((beta - 1) / (beta + 1))^(1/beta)
+        term = (params.beta - 1) / (params.beta + 1)
+        x_infl = params.kappa * np.power(term, 1.0 / params.beta)
+        
+        # Check efficiency at inflection point
+        cpa_at_infl = calculate_marginal_cpa(x_infl, params)
+        
+        if cpa_at_infl is None or cpa_at_infl > target_marginal_cpa:
+            # Even at peak efficiency, it's not efficient enough
+            return 0.0
+            
+        # If efficient at peak, we search in the range [x_infl, max_search_spend]
+        # because to the left of x_infl efficiency is increasing (bad for binary search assumption)
+        # but to the right it is decreasing (good for binary search)
+        low = x_infl
+    else:
+        # Standard diminishing returns, efficiency is max at 0 and decreases
+        low = 0.0
+        
+    high = max_search_spend
+    
+    # Binary search
+    for _ in range(50):
+        mid = (low + high) / 2
+        cpa = calculate_marginal_cpa(mid, params)
+        
+        if cpa is None:
+            return low # Should not happen if bounds checked
+            
+        if cpa < target_marginal_cpa:
+            # Still efficient (CPA is low), try higher spend
+            low = mid
+        else:
+            # Inefficient (CPA is high), try lower spend
+            high = mid
+            
+    return low

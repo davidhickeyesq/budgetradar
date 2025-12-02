@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AreaChart, Card, Title, Text } from "@tremor/react";
+import { LineChart, Card, Title, Text } from "@tremor/react";
 
 interface TrustChartProps {
     accountId: string;
@@ -100,18 +100,19 @@ export default function TrustChart({ accountId, channelName }: TrustChartProps) 
                     </Text>
                 )}
             </div>
-            <AreaChart
+            <LineChart
                 className="h-72 mt-4"
                 data={chartData}
                 index="date"
                 categories={["Actual", "Predicted"]}
                 colors={["blue", "cyan"]}
-                valueFormatter={(number) =>
+                valueFormatter={(number: number) =>
                     `$${Intl.NumberFormat("us").format(number).toString()}`
                 }
                 showAnimation={true}
                 yAxisWidth={60}
             />
+            <div className="hidden stroke-blue-500 stroke-cyan-500 text-blue-500 text-cyan-500 bg-blue-500 bg-cyan-500 fill-blue-500 fill-cyan-500" />
         </Card>
     );
 }
