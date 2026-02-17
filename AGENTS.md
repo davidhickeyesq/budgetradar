@@ -149,3 +149,17 @@ docker-compose down -v
 - `README.md`: Quick Start
 - `ARCHITECTURE.md`: detailed Docker setup
 - `docs/MIGRATION.md`: Cloud deployment guide
+
+## Multi-Agent Execution Protocol
+
+For cross-agent delivery coordination, follow:
+
+1. `/Users/davidhickey/Documents/Projects/budgetradar/docs/execution/README.md`
+2. `/Users/davidhickey/Documents/Projects/budgetradar/docs/execution/HANDOFF_PROTOCOL.md`
+3. `/Users/davidhickey/Documents/Projects/budgetradar/docs/execution/status.yaml`
+
+Rules:
+- Packet specs in `/Users/davidhickey/Documents/Projects/budgetradar/docs/execution/packets/` are canonical.
+- GitHub Project is operational mirror only.
+- Packet PRs must use `[P00X]` title format and include packet metadata per PR template.
+- Non-packet execution-infra PRs must use `[CHORE]` or `[EPIC]` prefix.
