@@ -18,6 +18,7 @@ function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
     targetCpa: result.target_cpa,
     trafficLight: result.traffic_light,
     rSquared: result.model_params?.r_squared ?? null,
+    modelParams: result.model_params ?? null,
   }
 }
 

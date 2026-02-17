@@ -2,6 +2,7 @@
 
 import type { ChannelMetrics, TrafficLight } from '@/types'
 import { getRecommendation } from '@/types'
+import { CostCurveChart } from '@/components/CostCurveChart'
 
 interface TrafficLightRadarProps {
   channels: ChannelMetrics[]
@@ -27,13 +28,6 @@ const dotClasses: Record<TrafficLight, string> = {
   yellow: 'status-dot status-dot-amber',
   red: 'status-dot status-dot-red',
   grey: 'status-dot status-dot-grey',
-}
-
-const progressClasses: Record<TrafficLight, string> = {
-  green: 'progress-fill progress-fill-green',
-  yellow: 'progress-fill progress-fill-amber',
-  red: 'progress-fill progress-fill-red',
-  grey: 'progress-fill',
 }
 
 const trafficLightLabels: Record<TrafficLight, string> = {
@@ -72,10 +66,7 @@ interface ChannelRowProps {
 }
 
 function ChannelRow({ channel, targetCpa, index }: ChannelRowProps) {
-  const { channelName, marginalCpa, trafficLight, currentSpend, rSquared } = channel
-
-  const ratio = marginalCpa !== null ? (marginalCpa / targetCpa) * 100 : 0
-  const cappedRatio = Math.min(ratio, 100)
+  const { channelName, marginalCpa, trafficLight, currentSpend, rSquared, modelParams } = channel
 
   return (
     <div
@@ -83,11 +74,14 @@ function ChannelRow({ channel, targetCpa, index }: ChannelRowProps) {
       style={{ animationDelay: `${index * 0.1}s` }}
     >
       {/* Top row: name + badge */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <div>
           <h3 className="font-semibold text-slate-900">{channelName}</h3>
           <p className="text-sm text-slate-500 mt-0.5">
             Daily spend: <span className="font-medium text-slate-700">${currentSpend.toLocaleString()}</span>
+            {marginalCpa !== null && (
+              <> · Marginal CPA: <span className="font-medium text-slate-700">${marginalCpa.toFixed(2)}</span></>
+            )}
           </p>
         </div>
         <span className={badgeClasses[trafficLight]}>
@@ -96,41 +90,61 @@ function ChannelRow({ channel, targetCpa, index }: ChannelRowProps) {
         </span>
       </div>
 
-      {/* Progress bar */}
-      <div className="mb-3">
-        <div className="flex justify-between text-sm mb-1.5">
-          <span className="text-slate-600">
-            Marginal CPA: {marginalCpa !== null ? (
-              <span className="font-semibold text-slate-800">${marginalCpa.toFixed(2)}</span>
-            ) : (
-              <span className="text-slate-400">N/A</span>
-            )}
-          </span>
-          {marginalCpa !== null && (
-            <span className="text-slate-500">{ratio.toFixed(0)}% of target</span>
-          )}
-        </div>
-
-        {marginalCpa !== null && (
-          <div className="progress-track">
-            <div
-              className={progressClasses[trafficLight]}
-              style={{ width: `${cappedRatio}%` }}
-            />
+      {/* Cost Curve Chart */}
+      {modelParams && marginalCpa !== null ? (
+        <>
+          <p className="text-xs text-slate-400 mb-2">How marginal CPA changes as you scale spend</p>
+          <CostCurveChart
+            modelParams={modelParams}
+            currentSpend={currentSpend}
+            targetCpa={targetCpa}
+            channelName={channelName}
+          />
+          {/* Chart legend */}
+          <div className="flex items-center justify-center gap-5 mt-3 text-xs text-slate-500">
+            <div className="flex items-center gap-1.5">
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+              Scale
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+              Maintain
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
+              Cut
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span style={{ width: 12, height: 2, background: '#6366f1', display: 'inline-block', borderRadius: 1 }} />
+              Target
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#1e293b', display: 'inline-block', border: '2px solid white', boxShadow: '0 0 0 1px #cbd5e1' }} />
+              Current
+            </div>
           </div>
+        </>
+      ) : (
+        <div className="py-4 px-3 rounded-lg bg-slate-50 text-center">
+          <p className="text-sm text-slate-400">
+            {trafficLight === 'grey'
+              ? 'Insufficient data to generate cost curve (need 21+ days)'
+              : 'Cost curve unavailable'}
+          </p>
+        </div>
+      )}
+
+      {/* Recommendation + model confidence */}
+      <div className="flex items-center justify-between mt-3">
+        <p className="text-sm text-slate-500">
+          {getRecommendation(trafficLight)}
+        </p>
+        {rSquared !== null && (
+          <p className="text-xs text-slate-400">
+            Model fit (R²): {(rSquared * 100).toFixed(1)}%
+          </p>
         )}
       </div>
-
-      {/* Recommendation */}
-      <p className="text-sm text-slate-500">
-        {getRecommendation(trafficLight)}
-      </p>
-
-      {rSquared !== null && (
-        <p className="text-xs text-slate-400 mt-1">
-          Model fit (R²): {(rSquared * 100).toFixed(1)}%
-        </p>
-      )}
     </div>
   )
 }
