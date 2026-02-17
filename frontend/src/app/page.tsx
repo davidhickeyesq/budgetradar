@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { TrafficLightRadar } from '@/components/TrafficLightRadar'
-import { analyzeChannels, MarginalCpaResult } from '@/lib/api'
+import { analyzeChannels, getDefaultAccount, MarginalCpaResult } from '@/lib/api'
 import type { ChannelMetrics } from '@/types'
 
-const ACCOUNT_ID = 'a8465a7b-bf39-4352-9658-4f1b8d05b381'
 const TARGET_CPA = 50
 
 function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
@@ -26,12 +25,16 @@ export default function Home() {
   const [channels, setChannels] = useState<ChannelMetrics[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [accountId, setAccountId] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true)
-        const response = await analyzeChannels(ACCOUNT_ID, TARGET_CPA)
+        const account = await getDefaultAccount()
+        setAccountId(account.account_id)
+
+        const response = await analyzeChannels(account.account_id, TARGET_CPA)
         setChannels(response.channels.map(mapApiToChannelMetrics))
         setError(null)
       } catch (err) {

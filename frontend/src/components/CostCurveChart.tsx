@@ -280,7 +280,6 @@ export function CostCurveChart({ modelParams, currentSpend, targetCpa, channelNa
                         fill="#1e293b"
                         stroke="#ffffff"
                         strokeWidth={3}
-                        isFront={true}
                     />
                 </AreaChart>
             </ResponsiveContainer>

@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy import create_engine, select, desc, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 from functools import lru_cache
@@ -6,7 +7,7 @@ from typing import Optional
 
 from app.config import get_settings
 from app.models.schemas import HillParameters
-from app.models.db_models import Base, DailyMetric, MMMModel
+from app.models.db_models import Base, DailyMetric, MMMModel, Account
 
 
 @lru_cache
@@ -49,6 +50,30 @@ def migrate_daily_metrics_revenue_to_conversions() -> bool:
         return True
 
     return False
+
+
+def fetch_default_account() -> Account:
+    """
+    Get the default account. If none exists, create the seed account.
+    """
+    session = get_session()
+    try:
+        # Try to find any account
+        stmt = select(Account).limit(1)
+        account = session.execute(stmt).scalar_one_or_none()
+        
+        if account:
+            return account
+        
+        # Create seed account
+        DEMO_ACCOUNT_ID = uuid.UUID("a8465a7b-bf39-4352-9658-4f1b8d05b381")
+        account = Account(id=DEMO_ACCOUNT_ID, name="Demo Company")
+        session.add(account)
+        session.commit()
+        session.refresh(account)
+        return account
+    finally:
+        session.close()
 
 
 def fetch_daily_metrics(

@@ -44,6 +44,19 @@ export async function analyzeChannels(
   return response.json()
 }
 
+export interface AccountResponse {
+  account_id: string
+  name: string
+}
+
+export async function getDefaultAccount(): Promise<AccountResponse> {
+  const response = await fetch(`${API_URL}/api/accounts/default`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch default account')
+  }
+  return response.json()
+}
+
 export async function healthCheck(): Promise<boolean> {
   try {
     const response = await fetch(`${API_URL}/api/health`)

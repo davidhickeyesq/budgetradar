@@ -1,11 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import CsvUploader from '../../components/CsvUploader';
+import { getDefaultAccount } from '../../lib/api';
 
 export default function ImportPage() {
-    const [accountId] = useState('95bbc1c9-2535-49ea-9474-dbfa082feee4');
+    const [accountId, setAccountId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+    useEffect(() => {
+        getDefaultAccount()
+            .then(account => {
+                setAccountId(account.account_id);
+            })
+            .catch(err => console.error('Failed to fetch default account:', err))
+            .finally(() => setLoading(false));
+    }, []);
+
+    if (loading) {
+        return <div className="p-8 text-center text-slate-500">Loading account context...</div>;
+    }
+
+    if (!accountId) {
+        return <div className="p-8 text-center text-red-500">Failed to load account context. Please ensure backend is running.</div>;
+    }
 
     return (
         <main className="space-y-6">
