@@ -32,7 +32,4 @@ npm-debug.log*
 coverage/
 .pytest_cache/
 
-# Supabase
-supabase/.temp/
-supabase/supabase/.temp/
-.env.local.example
+

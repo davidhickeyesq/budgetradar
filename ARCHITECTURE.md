@@ -34,7 +34,7 @@ The generic `docker-compose up` command orchestrates three services to Create a 
 ### 2. Backend (FastAPI)
 - **Image:** Python 3.11-slim
 - **Port:** Exposes 8000 on host
-- **ORM:** SQLAlchemy 2.0 (replaces Supabase client)
+- **ORM:** SQLAlchemy 2.0
 - **Math Engine:** Scipy + NumPy for Hill Function fitting
 - **Uploads:** Python-Multipart for CSV ingestion
 - **Startup:** Runs `init_db()` and `seed_data.py` automatically if empty.
@@ -62,7 +62,7 @@ The generic `docker-compose up` command orchestrates three services to Create a 
 
 ## Database Schema
 
-**Matched to original Supabase Schema for compatibility:**
+**Schema Definition:**
 
 - **accounts:** `id (UUID), name`
 - **daily_metrics:** `account_id, date, channel_name, spend, revenue, impressions`
@@ -72,9 +72,7 @@ The generic `docker-compose up` command orchestrates three services to Create a 
 
 ## Key Design Decisions
 
-1. **Local-First:** Dependency on `supabase-py` was abstracted behind a `database.py` service layer.
-   - If `USE_SUPABASE=false` (default), uses SQLAlchemy.
-   - If `USE_SUPABASE=true`, uses Supabase client (legacy mode).
+1. **Local-First:** Dependency on external cloud providers has been removed. The application uses a local PostgreSQL instance.
 
 2. **Stateless Backend:** The backend container can be destroyed and recreated at will. State lives only in `postgres_data` volume.
 
