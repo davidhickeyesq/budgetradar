@@ -25,9 +25,7 @@
 ```csv
 date,channel_name,spend,revenue,impressions
 2025-01-01,Google Ads,1000.50,5600.00,25000
-2025-01-01,Meta Ads,850.25,3200.00,21000
 2025-01-02,Google Ads,1100.00,5800.00,26000
-2025-01-02,Meta Ads,900.00,3400.00,22000
 ```
 
 ## Validation Rules

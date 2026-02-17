@@ -35,7 +35,7 @@ make dev
 - **Frontend:** [http://localhost:3000](http://localhost:3000)
 - **API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
 
-The database is **auto-seeded** with demo data on first run. You should see 4 channels (Google, Meta, TikTok, LinkedIn) with traffic light indicators immediately.
+The database is **auto-seeded** with demo data on first run. You should see Google Ads with traffic light indicators immediately.
 
 ---
 
