@@ -1,9 +1,9 @@
 ---
 id: P001
 title: Account context + import UX
-state: TODO
+state: REVIEW
 execution_status: Ready
-owner:
+owner: Antigravity
 branch: codex/p001-account-context
 pr:
 depends_on: []

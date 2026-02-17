@@ -7,6 +7,7 @@ from app.models.schemas import (
     ChannelAnalysisResponse,
     MarginalCpaResult,
     HillParameters,
+    AccountResponse,
 )
 from app.services.hill_function import (
     fit_hill_model,
@@ -20,9 +21,19 @@ from app.services.database import (
     fetch_channels_for_account,
     get_current_spend,
     save_model_params,
+    fetch_default_account,
 )
 
 router = APIRouter(prefix="/api", tags=["analysis"])
+
+
+@router.get("/accounts/default", response_model=AccountResponse)
+async def get_default_account():
+    """
+    Get the default account context.
+    """
+    account = fetch_default_account()
+    return AccountResponse(account_id=str(account.id), name=account.name)
 
 
 @router.post("/fit-model", response_model=FitModelResponse)

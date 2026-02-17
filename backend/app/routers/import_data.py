@@ -48,10 +48,10 @@ async def import_csv(
                 
             account = session.query(Account).filter(Account.id == acc_uuid).first()
             if not account:
-                # In local mode, we might want to auto-create, but better to be strict
-                # If the user provides a random UUID, maybe create it? 
-                # For now let's assume the ID comes from the seed or existing account
-                raise HTTPException(status_code=404, detail="Account not found")
+                # Auto-create account for local-first UX
+                account = Account(id=acc_uuid, name="Imported Account")
+                session.add(account)
+                session.commit()
 
             # Basic data cleaning
             df['date'] = pd.to_datetime(df['date']).dt.date
