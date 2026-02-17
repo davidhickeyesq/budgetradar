@@ -15,7 +15,7 @@ from app.services.hill_function import (
     get_recommendation,
     HillFitResult,
 )
-from app.services.supabase_client import (
+from app.services.database import (
     fetch_daily_metrics,
     fetch_channels_for_account,
     get_current_spend,

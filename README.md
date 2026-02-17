@@ -1,69 +1,123 @@
-# Marginal Efficiency Radar
+# Marginal Efficiency Radar 🎯
 
-Marketing FP&A tool that calculates and visualizes Marginal CPA to identify the "Efficiency Wall" where marketing spend hits diminishing returns.
+**Marketing FP&A Tool for Efficiency Analysis**
 
-## Tech Stack
+Identify diminishing returns in your ad spend. Calculate the "efficiency wall" for every marketing channel and stop wasting budget on saturated audiences.
 
-- **Frontend:** Next.js 14+, Tremor, TypeScript
-- **Backend:** Python FastAPI, scipy, numpy
-- **Database:** Supabase (PostgreSQL)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![React](https://img.shields.io/badge/react-19-blue)
+![Docker](https://img.shields.io/badge/docker-ready-green)
 
-## Quick Start
+---
 
-### 1. Database Setup
+## 🚀 Quick Start (Local First)
 
-Run the migration in Supabase SQL Editor:
-```sql
--- See supabase/migrations/20250101120000_init.sql
-```
+Get running in less than 2 minutes. No cloud account required.
 
-### 2. Backend
+### 1. Prerequisites
+- Docker Desktop installed and running
 
+### 2. Setup & Run
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+# Clone the repository
+git clone https://github.com/davidhickeyesq/budgetradar.git
+cd budgetradar
 
-# Create .env with your Supabase credentials
-cp .env.example .env
+# Run initial setup (creates .env)
+./setup.sh
 
-# Seed test data
-python scripts/seed_data.py
-
-# Start server
-uvicorn app.main:app --reload
+# Start the application
+make dev
 ```
 
-### 3. Frontend
+### 3. Open Dashboard
+- **Frontend:** [http://localhost:3000](http://localhost:3000)
+- **API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
 
-```bash
-cd frontend
-npm install
+The database is **auto-seeded** with demo data on first run. You should see 4 channels (Google, Meta, TikTok, LinkedIn) with traffic light indicators immediately.
 
-# Create .env.local (optional, defaults to localhost:8000)
-cp .env.local.example .env.local
+---
 
-npm run dev
+## 📊 How It Works
+
+1. **Ingest Data:** Upload daily spend/revenue CSVs or use the auto-generated seed data.
+2. **Fit Hill Function:** The backend fits a Hill Function curve ($S$-curve) to your historical data:
+   $$Revenue = \text{MaxYield} \times \frac{Spend^\beta}{\kappa^\beta + Spend^\beta}$$
+3. **Calculate Marginal CPA:** It computes the cost to acquire the *next* conversion at your current spend level.
+4. **Traffic Light Logic:**
+   - 🟢 **Green:** Marginal CPA < Target (Scale spend)
+   - 🟡 **Yellow:** Marginal CPA ≈ Target (Optimal efficiency)
+   - 🔴 **Red:** Marginal CPA > Target (Diminishing returns - Pull back)
+   - ⚪ **Grey:** Insufficient data (< 21 days)
+
+---
+
+## 📦 Common Commands
+
+We use `make` to simplify common development tasks:
+
+| Command | Description |
+|---------|-------------|
+| `make dev` | Start all services (Frontend, Backend, Postgres) |
+| `make seed` | Re-populate the database with fresh demo data |
+| `make clean` | Stop containers and remove all data volumes (Fresh start) |
+| `make logs` | Stream logs from all services |
+| `make health` | Check health status of all 3 services |
+| `make test` | Run backend unit tests |
+
+---
+
+## 📁 CSV Import Format
+
+You can upload your own marketing data at [http://localhost:3000/import](http://localhost:3000/import).
+Download the [template CSV here](http://localhost:8000/api/import/template).
+
+**Required Columns:**
+- `date`: YYYY-MM-DD
+- `channel_name`: String (e.g. "Google Ads")
+- `spend`: Numeric (no currency symbols)
+- `revenue`: Numeric (no currency symbols)
+
+**Optional:**
+- `impressions`: Integer
+
+---
+
+## 🏗️ Architecture
+
+The Local-First version runs entirely on your machine via Docker Compose:
+
+```mermaid
+graph TD
+    User[User Browser] -->|localhost:3000| Frontend[Next.js Frontend]
+    Frontend -->|localhost:8000| Backend[FastAPI Backend]
+    Backend -->|SQLAlchemy| DB[(PostgreSQL 15)]
+    Backend -->|Pandas/Scipy| Math[Hill Function Engine]
 ```
 
-Open http://localhost:3000
+See [ARCHITECTURE.md](ARCHITECTURE.md) for deep dive.
 
-## Traffic Light System
+---
 
-| Color | Condition | Action |
-|-------|-----------|--------|
-| 🟢 Green | Marginal CPA < 90% of Target | Scale spend |
-| 🟡 Yellow | Marginal CPA 90-110% of Target | Maintain |
-| 🔴 Red | Marginal CPA > 110% of Target | Cut spend |
-| ⚪ Grey | < 21 days of data | Wait for data |
+## 🔧 Configuration (.env)
 
-## API Endpoints
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | postgres://... | Internal Docker network URL |
+| `USE_SUPABASE` | false | Set to true for cloud deployment |
+| `MIN_DATA_DAYS` | 21 | Minimum days required for model fitting |
+| `MARGINAL_INCREMENT` | 0.10 | Spend increment (10%) for marginal calc |
 
-- `POST /api/analyze-channels` - Analyze all channels for an account
-- `POST /api/fit-model` - Fit Hill Function for a single channel
-- `GET /api/health` - Health check
+---
 
-## License
+## 🤝 Contributing & Migration
 
-MIT
+This project supports both **Local** (Docker) and **Cloud** (Supabase) deployments.
+See [docs/MIGRATION.md](docs/MIGRATION.md) for instructions on deploying to Supabase + Vercel.
+
+---
+
+## 📄 License
+
+MIT License. See [LICENSE](LICENSE) for details.

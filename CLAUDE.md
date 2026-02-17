@@ -8,16 +8,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-### Three-Tier Design
+### Three-Tier Design (Local-First)
 
 1. **Frontend** (Next.js 14+): Tremor charts, real-time traffic light indicators
-2. **Backend** (Python FastAPI): Stateless math engine for curve fitting
-3. **Database** (Supabase): PostgreSQL with Row Level Security (RLS)
+2. **Backend** (Python FastAPI): Stateless math engine with SQLAlchemy
+3. **Database** (PostgreSQL 15): Runs in Docker container (Local) or Supabase (Cloud)
 
 ### Critical Data Flow
 
 ```
-Frontend → Supabase (daily_metrics) → Python Engine → Fit Hill Curve → Supabase (mmm_models) → Frontend (Traffic Lights)
+Frontend → Database (daily_metrics) → Python Engine → Fit Hill Curve → Database (mmm_models) → Frontend (Traffic Lights)
 ```
 
 The Python service must be **stateless**: reads DB → fits curves → writes parameters back. Do NOT hold models in memory.
@@ -38,65 +38,39 @@ Conversion = S * (Spend^beta) / (kappa^beta + Spend^beta)
 
 ### Database Schema
 
-Key tables in `supabase/migrations/20250101120000_init.sql`:
+Key tables in `backend/migrations/001_init.sql`:
 
-- `accounts`: User accounts (UUID, name, encrypted API tokens)
+- `accounts`: User accounts (UUID, name)
 - `daily_metrics`: Time series data (account_id, date, channel_name, spend, revenue, impressions)
   - UNIQUE constraint on (account_id, date, channel_name)
 - `mmm_models`: Fitted parameters (alpha, beta, kappa, max_yield, r_squared)
 - `scenarios`: Future "What-If" simulator storage
 
-All tables have RLS policies where `auth.uid() = account_id`.
-
 ## Development Commands
 
-### Backend (Python FastAPI)
+We use `make` for all common tasks:
 
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+# Start development environment
+make dev
 
-# Setup environment
-cp .env.example .env
-# Edit .env with SUPABASE_URL and SUPABASE_SERVICE_KEY
+# Seeding data
+make seed
 
-# Seed test data
-python scripts/seed_data.py
+# Testing
+make test
 
-# Run development server
-uvicorn app.main:app --reload
-# API available at http://localhost:8000
-# Docs at http://localhost:8000/docs
+# View logs
+make logs
+
+# Clean start (removes volumes)
+make clean
 ```
 
-### Frontend (Next.js)
-
+For manual Docker usage:
 ```bash
-cd frontend
-npm install
-
-# Optional: Configure backend URL
-# cp .env.local.example .env.local
-
-npm run dev     # Development server (http://localhost:3000)
-npm run build   # Production build
-npm run lint    # Run ESLint
-```
-
-### Database (Supabase)
-
-```bash
-# Local development (optional)
-supabase init
-supabase start
-
-# Push migrations to remote
-supabase db push
-
-# Pull schema from remote
-supabase db pull
+docker-compose up --build
+docker-compose down -v
 ```
 
 ## Critical Implementation Rules
@@ -162,25 +136,27 @@ If `scipy.optimize.curve_fit` fails:
 ### Backend
 
 - `app/main.py`: FastAPI app entry point, CORS middleware
-- `app/routers/analysis.py`: API endpoints (`/api/analyze-channels`, `/api/fit-model`)
+- `app/routers/analysis.py`: API endpoints for math models
+- `app/routers/import_data.py`: API endpoints for CSV upload
 - `app/services/hill_function.py`: Core math logic (Hill Function, adstock, marginal CPA)
-- `app/services/supabase_client.py`: Database interaction
-- `app/models/schemas.py`: Pydantic request/response models
+- `app/services/database.py`: SQLAlchemy abstraction layer
+- `app/models/db_models.py`: SQLAlchemy ORM models
 - `app/config.py`: Settings with defaults (min_data_days, alpha range, beta bounds)
 
 ### Frontend
 
 - `src/app/page.tsx`: Main dashboard page
+- `src/app/import/page.tsx`: CSV Import page
 - `src/components/TrafficLightRadar.tsx`: Visualization component
+- `src/components/CsvUploader.tsx`: File upload component
 - `src/lib/api.ts`: Backend API client
-- `src/lib/supabase/`: Supabase client configuration
-- `src/types/`: TypeScript type definitions
 
 ## API Endpoints
 
-- `GET /`: API info and docs link
 - `POST /api/analyze-channels`: Analyze all channels for an account
 - `POST /api/fit-model`: Fit Hill Function for a single channel
+- `POST /api/import/csv`: Upload daily metrics
+- `GET /api/import/template`: Download CSV template
 - `GET /api/health`: Health check
 
 ## Code Conventions
@@ -192,22 +168,10 @@ If `scipy.optimize.curve_fit` fails:
 - Use Pydantic models for validation
 - Service layer for business logic (`services/`), models for data schemas (`models/`)
 
-### TypeScript (Frontend)
-
-- Strict mode enabled
-- Type all props and returns
-- Components in PascalCase (e.g., `TrafficLightRadar.tsx`)
-- Utilities in camelCase
-
-### SQL
-
-- Table names: snake_case, plural
-- Always include `id`, `created_at`, `updated_at`
-- Use RLS policies for multi-tenant isolation
-
-## Reference Documentation
+### Reference Documentation
 
 Comprehensive details in:
-- `AGENTS.md`: Full architectural decisions, schema, math patterns
-- `docs/project-context.md`: Core problem statement and math logic
-- `README.md`: Quick start guide
+- `ARCHITECTURE.md`: Local-First Docker architecture
+- `README.md`: Quick start
+- `docs/CSV_FORMAT.md`: Data ingestion specs
+- `docs/MIGRATION.md`: Deploying to Supabase (Cloud)

@@ -7,14 +7,18 @@ We are building a tool that solves "Blended ROAS Blindness." Marketers optimize 
 
 ## 2. Tech Stack & Architecture
 - **Frontend:** Next.js (App Router) + Tremor (Charts/UI).
-- **Backend/DB:** Supabase (PostgreSQL + Auth + Row Level Security).
+- **Backend:** FastAPI (Python 3.11) with SQLAlchemy.
+- **Database:** PostgreSQL (Local via Docker 🐳 or Cloud via Supabase ⚡).
 - **Math Engine:** A specialized Python service (FastAPI) using `scipy.optimize` and `numpy`.
-    - *Constraint:* Supabase cannot run heavy math. The Python service reads from Supabase, fits the curves, and writes parameters back to Supabase.
+    - *Constraint:* The math engine operates statelessly, fetching data from the DB, fitting curves, and saving parameters.
 
-## 3. Data Schema (Supabase)
-- `accounts`: UUID, name, API tokens (encrypted).
+## 3. Data Schema
+*Note: Schema is identical for both Local and Cloud versions.*
+- `accounts`: UUID, name.
 - `daily_metrics`: date, channel_name, spend, revenue, impressions.
+  - *Constraint:* Unique (account_id, date, channel_name)
 - `mmm_models`: account_id, channel_name, alpha (adstock), beta (slope), kappa (half-saturation), max_yield (asymptote).
+- `scenarios`: Stores future budget allocation scenarios (JSONB).
 
 ## 4. The Math Logic (Crucial)
 We use the **Hill Function** for diminishing returns:

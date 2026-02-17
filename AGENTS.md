@@ -11,19 +11,19 @@
 
 ### Frontend
 - **Framework:** Next.js 14+ (App Router)
-- **Charts/UI:** Tremor
+- **UI:** Tremor + Tailwind CSS
 - **Language:** TypeScript
-- **Package Manager:** npm/yarn
+- **State:** React Hooks
 
-### Backend/Database
-- **Database & Auth:** Supabase (PostgreSQL + RLS)
-- **API:** Supabase RPC or REST
+### Backend
+- **Framework:** FastAPI (Python 3.11)
+- **Math Engine:** scipy.optimize, numpy, pandas
+- **Database Access:** SQLAlchemy (Local) or Supabase Client (Cloud/Legacy)
+- **Purpose:** Curve-fitting (Hill Function), marginal CPA calculations, CSV processing
 
-### Math Engine
-- **Language:** Python 3.9+
-- **Framework:** FastAPI
-- **Libraries:** scipy.optimize, numpy, pandas
-- **Purpose:** Curve-fitting (Hill Function), marginal CPA calculations
+### Database
+- **Primary:** PostgreSQL 15
+- **Deployment:** Docker Container (Local) OR Supabase Platform (Cloud)
 
 ---
 
@@ -31,19 +31,21 @@
 
 ```
 budgetradar/
-├── docs/
-│   └── project-context.md          # Project overview & math logic
+├── docker-compose.yml               # Service orchestration
+├── Makefile                         # Task runner
 ├── frontend/                        # Next.js app
-│   ├── app/
-│   ├── components/
-│   └── lib/
+│   ├── src/app/                     # Pages & Layouts
+│   ├── src/components/              # UI Components
+│   └── src/lib/                     # API Clients
 ├── backend/                         # Python FastAPI service
 │   ├── app/
-│   ├── models/
-│   ├── services/
-│   └── requirements.txt
-├── supabase/
-│   └── migrations/                  # SQL migrations
+│   │   ├── main.py                  # Entry point
+│   │   ├── config.py                # Settings
+│   │   ├── routers/                 # API Endpoints
+│   │   ├── models/                  # Pydantic & SQLAlchemy Models
+│   │   └── services/                # Business Logic (Math & DB)
+│   └── migrations/                  # SQL Schema
+├── docs/                            # Documentation
 └── AGENTS.md                        # This file
 ```
 
@@ -60,194 +62,90 @@ Where:
 - `beta` = slope (elasticity)
 - `kappa` = half-saturation point
 
-
-
 ### Marginal CPA Calculation
-### Adstock Implementation (Important)
-**Do NOT fit `alpha` simultaneously with Hill parameters.** This causes instability.
+**Do NOT fit `alpha` simultaneously with Hill parameters.** This causes instability. Use Grid Search for alpha.
 
-1. Get current spend and conversions
-2. Use **derivative** or **5-10% increment** (NOT 1%) for numerical stability
+1. Get current spend and conversions (from fitted curve)
+2. Use **10% increment** (NOT 1%) for numerical stability
 3. `Marginal CPA = (Spend_Next - Spend_Current) / (Conversions_Next - Conversions_Current)`
 
 ### Traffic Light Rules
 - **Green:** Marginal CPA < 0.9 × Target CPA → Scale spend
 - **Yellow:** 0.9 × Target CPA ≤ Marginal CPA ≤ 1.1 × Target CPA → Maintain
 - **Red:** Marginal CPA > 1.1 × Target CPA → Cut spend (saturated)
+- **Grey:** Insufficient Data (< 21 days)
 
 ---
 
 ## Service Integration
 
-### Frontend → Supabase
-- Fetch account data, daily metrics, MMM model parameters
-- Use Row Level Security (RLS) for account isolation
-- Real-time charts via Tremor
+### Frontend → Backend API
+- The Frontend requests analysis via `/api/analyze-channels`.
+- The Frontend sends CSV uploads via `/api/import/csv`.
+- The Backend handles all database interactions.
 
-### Supabase → Python Engine
-- Python service polls or is triggered (webhook/cron) for new metrics
-- Reads `daily_metrics`, fits Hill Function curve
-- Writes fitted parameters to `mmm_models` table
-- Returns marginal CPA calculations
+### Backend → Database
+- **Local Mode:** Uses SQLAlchemy to connect to the local Postgres container.
+- **Cloud Mode:** Can be configured to use Supabase Client (if `USE_SUPABASE=true`).
+- **Flow:** Reads `daily_metrics` → Fits Hill Function → Writes `mmm_models` → Returns Analysis.
 
 ### Python Engine Outputs
 - Curve-fitted parameters: `alpha` (adstock), `beta`, `kappa`, `max_yield`
 - Marginal CPA for each channel
 - Confidence metrics (R² fit quality)
+- Traffic Light status
 
 ---
 
-## Database Schema (Supabase)
+## Database Schema
 
-
-
+Defined in `backend/migrations/001_init.sql`:
 
 ### accounts
-```sql
-CREATE TABLE accounts (
-  id UUID PRIMARY KEY,
-  name TEXT NOT NULL,
-  api_tokens BYTEA,  -- encrypted
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+- `id` (UUID, PK), `name` (Text)
 
 ### daily_metrics
-```sql
-CREATE TABLE daily_metrics (
-  id UUID PRIMARY KEY,
-  account_id UUID REFERENCES accounts(id),
-  date DATE NOT NULL,
-  channel_name TEXT NOT NULL,
-  spend DECIMAL(12,2),
-  revenue DECIMAL(12,2),
-  impressions INT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-
-  -- Add this constraint to prevent duplicate data for the same day/channel
-UNIQUE(account_id, date, channel_name)
-
-);
-
-
-```
+- `account_id` (FK), `date`, `channel_name`, `spend`, `revenue`, `impressions`
+- **Constraint:** Unique(account_id, date, channel_name)
 
 ### mmm_models
-```sql
-CREATE TABLE mmm_models (
-  id UUID PRIMARY KEY,
-  account_id UUID REFERENCES accounts(id),
-  channel_name TEXT NOT NULL,
-  alpha DECIMAL(8,6),      -- adstock decay
-  beta DECIMAL(8,6),       -- elasticity (Hill exponent)
-  kappa DECIMAL(12,2),     -- half-saturation point
-  max_yield DECIMAL(12,2), -- asymptote (S in Hill Function)
-  r_squared DECIMAL(5,4),  -- model fit quality
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+- `account_id` (FK), `channel_name`, `alpha`, `beta`, `kappa`, `max_yield`, `r_squared`
 
 ### scenarios
-```sql
--- Future proofing for "What-If" Simulator
-CREATE TABLE scenarios (
-  id UUID PRIMARY KEY,
-  account_id UUID REFERENCES accounts(id),
-  name TEXT,
-  configuration JSONB, -- Stores the "What If" sliders
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+- `account_id` (FK), `name`, `budget_allocation` (JSONB)
 
 ---
 
 ## Common Commands
 
-### Frontend Development
+### Unified Developer Experience (Makefile)
 ```bash
-cd frontend
-npm install
-npm run dev          # Start dev server (localhost:3000)
-npm run build        # Production build
-npm run lint         # ESLint
+make dev      # Start all services
+make seed     # Populate demo data
+make clean    # Stop and remove volumes
+make test     # Run tests
+make logs     # Stream logs
 ```
 
-### Python Backend Development
+### Manual Docker
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-pip install -r requirements.txt
-uvicorn app.main:app --reload  # Start server (localhost:8000)
+docker-compose up --build
+docker-compose down -v
 ```
-
-### Supabase
-```bash
-# Initialize Supabase locally (if using local dev)
-supabase init
-supabase start
-
-# Push migrations to remote
-supabase db push
-
-# Pull migrations from remote
-supabase db pull
-```
-
----
-
-## Code Style & Conventions
-
-### TypeScript (Frontend)
-- Use strict mode
-- Type all props and returns
-- Component naming: PascalCase (e.g., `TrafficLightRadar.tsx`)
-- Utility functions: camelCase
-
-### Python (Backend)
-- PEP 8 compliant
-- Type hints on all functions
-- Use Pydantic models for request/response validation
-- Service layer for business logic, models layer for data
-
-### SQL (Supabase)
-- Table names: snake_case, plural
-- Column names: snake_case
-- Always include `id`, `created_at`, `updated_at` (where relevant)
-- Use RLS policies for multi-tenant isolation
 
 ---
 
 ## Key Reminders
 
-1. **Numerical Stability (The 10% Rule):**
-   - When calculating Marginal CPA, calculate the lift from `Current Spend` to `Current Spend * 1.10`.
-   - Do NOT use +1% or +$1 increments; they are indistinguishable from noise.
-
-2. **The "Cold Start" Guardrail:**
-   - **Constraint:** Do NOT attempt to fit a Hill Function on less than **21 days** of non-zero spend data.
-   - **Fallback:** If data < 21 days, return the simple `Average CPA` and set `traffic_light` to "GREY" (Insufficient Data).
-
-3. **Parameter Bounding (Sanity Checks):**
-   - Constrain the `max_yield` (asymptote) during curve fitting. It should not exceed `3.0 * max(historical_daily_revenue)`.
-   - Constrain `beta` (slope) between `0.5` and `3.0`. Values >3 imply impossible "vertical" growth.
-
-4. **Adstock Implementation:**
-   - strictly use **Grid Search** for `alpha`.
-   - Range: `0.0` to `0.8` (step `0.1`). Avoid `0.9+` for daily data as it implies ~2 week memory, which causes lag in "Radar" signals.
-
-5. **Orchestration:**
-   - The Python service should be **stateless**. It reads DB -> Fits -> Updates DB.
-   - Do not hold models in memory.
-
-6. **Error Handling:**
-   - If `scipy.optimize` fails to converge (RuntimeError), catch it.
-   - Fallback: Save `status = 'failed'` in `mmm_models` and show the user a specific error ("Data too noisy to model").
+1. **Numerical Stability:** Use 10% spend increments for Marginal CPA.
+2. **Cold Start:** Require > 21 days of data before fitting models.
+3. **Parameter Bounds:** Constrain `beta` (0.5-3.0) and `max_yield` (<3x historical max).
+4. **Statelessness:** The math engine reads from DB, computes, and writes back. No in-memory state.
+5. **Local-First:** Defaults to local Docker. Cloud deployment is optional.
 
 ---
 
 ## References
-- [Tremor Docs](https://www.tremor.so/)
-- [Supabase Docs](https://supabase.com/docs)
-- [FastAPI Docs](https://fastapi.tiangolo.com/)
-- [scipy.optimize Curve Fitting](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html)
+- `README.md`: Quick Start
+- `ARCHITECTURE.md`: detailed Docker setup
+- `docs/MIGRATION.md`: Cloud deployment guide
