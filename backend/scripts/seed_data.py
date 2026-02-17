@@ -10,14 +10,15 @@ Creates 60 days of data for 4 channels with different efficiency profiles:
 
 import numpy as np
 from datetime import date, timedelta
-from supabase import create_client
+import uuid
+import sys
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+# Add parent directory to path so we can import app modules
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+from app.services.database import get_session
+from app.models.db_models import Account, DailyMetric, MMMModel
 
 
 def hill_function(spend: float, max_yield: float, beta: float, kappa: float) -> float:
@@ -57,7 +58,7 @@ def generate_channel_data(
         impressions = int(spend * np.random.uniform(80, 120))
         
         data.append({
-            "date": current_date.isoformat(),
+            "date": current_date,
             "channel_name": channel_name,
             "spend": spend,
             "revenue": revenue,
@@ -68,84 +69,118 @@ def generate_channel_data(
 
 
 def main():
-    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-        print("Error: Set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env")
-        return
+    session = get_session()
     
-    client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-    
-    print("Creating test account...")
-    account_response = client.table("accounts").insert({
-        "name": "Demo Company",
-    }).execute()
-    
-    account_id = account_response.data[0]["id"]
-    print(f"Created account: {account_id}")
-    
-    channels_config = [
-        {
-            "channel_name": "Google Ads",
-            "days": 60,
-            "base_spend": 1500,
-            "spend_growth": 0.3,
-            "max_yield": 8000,
-            "beta": 0.8,
-            "kappa": 3000,
-        },
-        {
-            "channel_name": "Meta Ads",
-            "days": 60,
-            "base_spend": 1200,
-            "spend_growth": 0.4,
-            "max_yield": 5000,
-            "beta": 1.2,
-            "kappa": 1800,
-        },
-        {
-            "channel_name": "TikTok Ads",
-            "days": 60,
-            "base_spend": 800,
-            "spend_growth": 0.6,
-            "max_yield": 2500,
-            "beta": 1.8,
-            "kappa": 600,
-        },
-        {
-            "channel_name": "LinkedIn Ads",
-            "days": 14,
-            "base_spend": 400,
-            "spend_growth": 0.2,
-            "max_yield": 1500,
-            "beta": 1.0,
-            "kappa": 800,
-        },
-    ]
-    
-    all_metrics = []
-    
-    for config in channels_config:
-        print(f"Generating data for {config['channel_name']}...")
-        channel_data = generate_channel_data(**config)
+    try:
+        DEMO_ACCOUNT_ID = "a8465a7b-bf39-4352-9658-4f1b8d05b381"
+        print("Creating test account...")
         
-        for row in channel_data:
-            row["account_id"] = account_id
+        # Check if account exists with the correct ID
+        existing_account = session.query(Account).filter(Account.id == DEMO_ACCOUNT_ID).first()
         
-        all_metrics.extend(channel_data)
-    
-    print(f"Inserting {len(all_metrics)} rows into daily_metrics...")
-    
-    batch_size = 100
-    for i in range(0, len(all_metrics), batch_size):
-        batch = all_metrics[i:i + batch_size]
-        client.table("daily_metrics").insert(batch).execute()
-        print(f"  Inserted rows {i + 1} to {min(i + batch_size, len(all_metrics))}")
-    
-    print("\n✓ Seed data complete!")
-    print(f"\nAccount ID: {account_id}")
-    print("\nUse this account_id to test the API:")
-    print(f'  curl -X POST http://localhost:8000/api/analyze-channels \\')
-    print(f'    -H "Content-Type: application/json" \\')
-    print(f'    -d \'{{"account_id": "{account_id}", "target_cpa": 50}}\'')
+        if existing_account:
+            account = existing_account
+            print(f"Using existing account: {account.id}")
+        else:
+            # Handle case where "Demo Company" exists with different ID
+            name_conflict = session.query(Account).filter(Account.name == "Demo Company").first()
+            if name_conflict:
+                print(f"Deleting old demo account {name_conflict.id} to enforce deterministic ID")
+                # Cascade delete should handle metrics if configured, but let's be safe
+                session.query(DailyMetric).filter(DailyMetric.account_id == name_conflict.id).delete()
+                session.query(MMMModel).filter(MMMModel.account_id == name_conflict.id).delete()
+                session.delete(name_conflict)
+                session.commit()
+            
+            account = Account(id=DEMO_ACCOUNT_ID, name="Demo Company")
+            session.add(account)
+            session.commit()
+            print(f"Created account: {account.id}")
+        
+        channels_config = [
+            {
+                "channel_name": "Google Ads",
+                "days": 60,
+                "base_spend": 1500,
+                "spend_growth": 0.3,
+                "max_yield": 8000,
+                "beta": 0.8,
+                "kappa": 3000,
+            },
+            {
+                "channel_name": "Meta Ads",
+                "days": 60,
+                "base_spend": 1200,
+                "spend_growth": 0.4,
+                "max_yield": 5000,
+                "beta": 1.2,
+                "kappa": 1800,
+            },
+            {
+                "channel_name": "TikTok Ads",
+                "days": 60,
+                "base_spend": 800,
+                "spend_growth": 0.6,
+                "max_yield": 2500,
+                "beta": 1.8,
+                "kappa": 600,
+            },
+            {
+                "channel_name": "LinkedIn Ads",
+                "days": 14,
+                "base_spend": 400,
+                "spend_growth": 0.2,
+                "max_yield": 1500,
+                "beta": 1.0,
+                "kappa": 800,
+            },
+        ]
+        
+        total_metrics = 0
+        
+        for config in channels_config:
+            print(f"Generating data for {config['channel_name']}...")
+            channel_data = generate_channel_data(**config)
+            
+            # Check for existing data to avoid violations
+            existing_dates = {
+                row[0] for row in session.query(DailyMetric.date)
+                .filter(DailyMetric.account_id == account.id)
+                .filter(DailyMetric.channel_name == config['channel_name'])
+                .all()
+            }
+            
+            metrics = []
+            for row in channel_data:
+                if row["date"] not in existing_dates:
+                    metrics.append(DailyMetric(
+                        account_id=account.id,
+                        date=row["date"],
+                        channel_name=row["channel_name"],
+                        spend=row["spend"],
+                        revenue=row["revenue"],
+                        impressions=row["impressions"],
+                    ))
+            
+            if metrics:
+                session.add_all(metrics)
+                total_metrics += len(metrics)
+        
+        session.commit()
+        
+        print(f"✓ Seed data complete! Added {total_metrics} daily metrics.")
+        print(f"\nAccount ID: {account.id}")
+        print("\nUse this account_id to test the API:")
+        print(f'  curl -X POST http://localhost:8000/api/analyze-channels \\')
+        print(f'    -H "Content-Type: application/json" \\')
+        print(f'    -d \'{{"account_id": "{account.id}", "target_cpa": 50}}\'')
+        
+    except Exception as e:
+        session.rollback()
+        print(f"Error seeding data: {e}")
+        raise
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":

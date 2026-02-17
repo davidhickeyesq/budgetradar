@@ -3,8 +3,13 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    supabase_url: str
-    supabase_service_key: str
+    # Database Config
+    database_url: str = "postgresql://localuser:localpass@postgres:5432/budgetradar"
+    use_supabase: bool = False
+    
+    # Supabase (Optional for local mode)
+    supabase_url: str | None = None
+    supabase_service_key: str | None = None
     
     min_data_days: int = 21
     marginal_increment: float = 0.10
