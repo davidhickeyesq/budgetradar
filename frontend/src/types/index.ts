@@ -1,5 +1,13 @@
 export type TrafficLight = 'green' | 'yellow' | 'red' | 'grey'
 
+export interface HillParameters {
+  alpha: number
+  beta: number
+  kappa: number
+  max_yield: number
+  r_squared: number
+}
+
 export interface ChannelMetrics {
   channelName: string
   currentSpend: number
@@ -9,6 +17,7 @@ export interface ChannelMetrics {
   targetCpa: number
   trafficLight: TrafficLight
   rSquared: number | null
+  modelParams: HillParameters | null
 }
 
 export interface MarginalCpaResult {
@@ -22,9 +31,9 @@ export interface MarginalCpaResult {
 
 export function getTrafficLight(marginalCpa: number | null, targetCpa: number): TrafficLight {
   if (marginalCpa === null) return 'grey'
-  
+
   const ratio = marginalCpa / targetCpa
-  
+
   if (ratio < 0.9) return 'green'
   if (ratio <= 1.1) return 'yellow'
   return 'red'
