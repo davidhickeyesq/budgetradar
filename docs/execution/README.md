@@ -45,3 +45,6 @@ All packet PRs must:
 1. Prefix title with packet ID (for example: `[P001] ...`).
 2. Link the packet issue and `Spec Path`.
 3. Include a `Validation` section with exact commands/results.
+
+Non-packet execution-infra PRs must use `[CHORE]` or `[EPIC]` prefix and still
+include a `Validation` section.

@@ -20,6 +20,7 @@ jobs:
 
           body="$(printf '%s\n' "${PR_BODY:-}" | tr -d '\r')"
           fail=0
+          mode=""
 
           require_pattern() {
             local pattern="$1"
@@ -30,28 +31,35 @@ jobs:
             fi
           }
 
-          if ! printf '%s\n' "$PR_TITLE" | grep -Eq '^\[P[0-9]{3}\][[:space:]]+.+$'; then
-            echo "::error::PR title must start with [P00X]. Example: [P001] Fix account context mismatch"
+          if printf '%s\n' "$PR_TITLE" | grep -Eq '^\[P[0-9]{3}\][[:space:]]+.+$'; then
+            mode="packet"
+          elif printf '%s\n' "$PR_TITLE" | grep -Eq '^\[(CHORE|EPIC)\][[:space:]]+.+$'; then
+            mode="meta"
+          else
+            echo "::error::PR title must start with [P00X] for packet work, or [CHORE]/[EPIC] for non-packet changes."
             fail=1
           fi
 
-          require_pattern '^Packet ID:[[:space:]]*P[0-9]{3}[[:space:]]*$' \
-            "PR body must include 'Packet ID: P00X'."
-          require_pattern '^Spec Path:[[:space:]]*/.*/docs/execution/packets/P[0-9]{3}[-a-z0-9]*\.md[[:space:]]*$' \
-            "PR body must include 'Spec Path' pointing to /docs/execution/packets/P00X-*.md."
-          require_pattern '^Issue:[[:space:]]*(#[0-9]+|https://github\.com/[^[:space:]]+/[^[:space:]]+/issues/[0-9]+)[[:space:]]*$' \
-            "PR body must include 'Issue: #<number>' or full issue URL."
           require_pattern '^##[[:space:]]+Validation[[:space:]]*$' \
             "PR body must include a '## Validation' section."
 
-          if printf '%s\n' "$body" | grep -Eq '^Packet ID:[[:space:]]*P000[[:space:]]*$'; then
-            echo "::error::Replace template placeholder Packet ID (P000) with the real packet id."
-            fail=1
-          fi
+          if [ "$mode" = "packet" ]; then
+            require_pattern '^Packet ID:[[:space:]]*P[0-9]{3}[[:space:]]*$' \
+              "PR body must include 'Packet ID: P00X'."
+            require_pattern '^Spec Path:[[:space:]]*/.*/docs/execution/packets/P[0-9]{3}[-a-z0-9]*\.md[[:space:]]*$' \
+              "PR body must include 'Spec Path' pointing to /docs/execution/packets/P00X-*.md."
+            require_pattern '^Issue:[[:space:]]*(#[0-9]+|https://github\.com/[^[:space:]]+/[^[:space:]]+/issues/[0-9]+)[[:space:]]*$' \
+              "PR body must include 'Issue: #<number>' or full issue URL."
 
-          if printf '%s\n' "$body" | grep -Eq '^Issue:[[:space:]]*#000[[:space:]]*$'; then
-            echo "::error::Replace template placeholder Issue (#000) with the real issue."
-            fail=1
+            if printf '%s\n' "$body" | grep -Eq '^Packet ID:[[:space:]]*P000[[:space:]]*$'; then
+              echo "::error::Replace template placeholder Packet ID (P000) with the real packet id."
+              fail=1
+            fi
+
+            if printf '%s\n' "$body" | grep -Eq '^Issue:[[:space:]]*#000[[:space:]]*$'; then
+              echo "::error::Replace template placeholder Issue (#000) with the real issue."
+              fail=1
+            fi
           fi
 
           if [ "$fail" -ne 0 ]; then
