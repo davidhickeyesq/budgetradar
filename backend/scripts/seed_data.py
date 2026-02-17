@@ -1,11 +1,8 @@
 """
 Generate synthetic daily_metrics data for testing the Marginal Efficiency Radar.
 
-Creates 60 days of data for 4 channels with different efficiency profiles:
+Creates 60 days of data for Google Ads:
 - Google Ads: High efficiency (green) - lots of headroom
-- Meta Ads: Optimal (yellow) - at the efficiency wall
-- TikTok Ads: Saturated (red) - past diminishing returns
-- LinkedIn Ads: New channel (grey) - only 14 days of data
 """
 
 import numpy as np
@@ -72,7 +69,7 @@ def main():
     session = get_session()
     
     try:
-        DEMO_ACCOUNT_ID = "a8465a7b-bf39-4352-9658-4f1b8d05b381"
+        DEMO_ACCOUNT_ID = uuid.UUID("a8465a7b-bf39-4352-9658-4f1b8d05b381")
         print("Creating test account...")
         
         # Check if account exists with the correct ID
@@ -106,33 +103,6 @@ def main():
                 "max_yield": 8000,
                 "beta": 0.8,
                 "kappa": 3000,
-            },
-            {
-                "channel_name": "Meta Ads",
-                "days": 60,
-                "base_spend": 1200,
-                "spend_growth": 0.4,
-                "max_yield": 5000,
-                "beta": 1.2,
-                "kappa": 1800,
-            },
-            {
-                "channel_name": "TikTok Ads",
-                "days": 60,
-                "base_spend": 800,
-                "spend_growth": 0.6,
-                "max_yield": 2500,
-                "beta": 1.8,
-                "kappa": 600,
-            },
-            {
-                "channel_name": "LinkedIn Ads",
-                "days": 14,
-                "base_spend": 400,
-                "spend_growth": 0.2,
-                "max_yield": 1500,
-                "beta": 1.0,
-                "kappa": 800,
             },
         ]
         
