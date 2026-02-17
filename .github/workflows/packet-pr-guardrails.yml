@@ -18,7 +18,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          body="$(printf '%s\n' "${PR_BODY:-}" | tr -d '\r')"
+          raw_body="${PR_BODY:-}"
+          body="${raw_body//\\r/}"
+          body="${body//\\n/$'\n'}"
+          body="$(printf '%s\n' "$body" | tr -d '\r')"
           fail=0
           mode=""
 
