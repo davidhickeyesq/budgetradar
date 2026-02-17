@@ -105,16 +105,15 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for deep dive.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | postgres://... | Internal Docker network URL |
-| `USE_SUPABASE` | false | Set to true for cloud deployment |
+
 | `MIN_DATA_DAYS` | 21 | Minimum days required for model fitting |
 | `MARGINAL_INCREMENT` | 0.10 | Spend increment (10%) for marginal calc |
 
 ---
 
-## 🤝 Contributing & Migration
+## 🤝 Contributing
 
-This project supports both **Local** (Docker) and **Cloud** (Supabase) deployments.
-See [docs/MIGRATION.md](docs/MIGRATION.md) for instructions on deploying to Supabase + Vercel.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
