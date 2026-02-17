@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, Button } from '@tremor/react';
+import { useState, useRef, DragEvent } from 'react';
 
 interface CsvUploaderProps {
   accountId: string;
@@ -11,11 +10,13 @@ export default function CsvUploader({ accountId }: CsvUploaderProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragover, setDragover] = useState(false);
   const [result, setResult] = useState<{
     rows_imported: number;
     channels: string[];
     date_range: { start: string; end: string };
   } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -23,6 +24,28 @@ export default function CsvUploader({ accountId }: CsvUploaderProps) {
       setError(null);
       setResult(null);
     }
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragover(false);
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile && droppedFile.name.endsWith('.csv')) {
+      setFile(droppedFile);
+      setError(null);
+      setResult(null);
+    } else {
+      setError('Please drop a .csv file');
+    }
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragover(true);
+  };
+
+  const handleDragLeave = () => {
+    setDragover(false);
   };
 
   const handleUpload = async () => {
@@ -34,8 +57,7 @@ export default function CsvUploader({ accountId }: CsvUploaderProps) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('account_id', accountId);
-    
-    // For local development, hardcoded URL. In prod, use environment variable.
+
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
     try {
@@ -52,10 +74,7 @@ export default function CsvUploader({ accountId }: CsvUploaderProps) {
 
       setResult(data);
       setFile(null);
-      // Reset file input
-      const fileInput = document.getElementById('csv-file') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-      
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
     } finally {
@@ -64,63 +83,94 @@ export default function CsvUploader({ accountId }: CsvUploaderProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <h3 className="text-lg font-medium text-tremor-content-strong mb-4">
+    <div className="space-y-5 animate-fade-in">
+      <div className="card-static p-6">
+        <h3 className="text-lg font-semibold text-slate-900 mb-4">
           Upload Marketing Data
         </h3>
-        
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <input
-              id="csv-file"
-              type="file"
-              accept=".csv"
-              onChange={handleFileChange}
-              className="block w-full text-sm text-slate-500
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-full file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100"
-            />
-            
-            <Button
-              onClick={handleUpload}
-              loading={uploading}
-              disabled={!file || uploading}
-              variant="primary"
-            >
-              {uploading ? 'Uploading...' : 'Upload & Import'}
-            </Button>
+
+        {/* Drag & drop zone */}
+        <div
+          className={`upload-zone ${dragover ? 'dragover' : ''}`}
+          onClick={() => fileInputRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+        >
+          <input
+            ref={fileInputRef}
+            id="csv-file"
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-3xl">📂</span>
+            {file ? (
+              <p className="text-sm font-medium text-indigo-700">{file.name}</p>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-slate-700">
+                  Drop your CSV here, or <span className="text-indigo-600 underline">browse</span>
+                </p>
+                <p className="text-xs text-slate-400">Supports .csv files</p>
+              </>
+            )}
           </div>
-
-          {error && (
-            <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm border border-red-200">
-              ❌ {error}
-            </div>
-          )}
-
-          {result && (
-            <div className="p-4 bg-green-50 text-green-800 rounded-md border border-green-200">
-              <div className="font-semibold mb-2">✅ Import Successful!</div>
-              <ul className="text-sm list-disc list-inside space-y-1">
-                <li>Rows processed: {result.rows_imported}</li>
-                <li>Channels detected: {result.channels.join(', ')}</li>
-                <li>Date range: {result.date_range.start} to {result.date_range.end}</li>
-              </ul>
-              <div className="mt-4">
-                <a 
-                  href="/" 
-                  className="font-medium text-blue-600 hover:text-blue-800 underline"
-                >
-                  → View Dashboard
-                </a>
-              </div>
-            </div>
-          )}
         </div>
-      </Card>
+
+        {/* Upload button */}
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={handleUpload}
+            disabled={!file || uploading}
+            className="btn-primary"
+          >
+            {uploading ? (
+              <span className="flex items-center gap-2">
+                <span
+                  className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white inline-block"
+                  style={{ animation: 'spin 0.8s linear infinite' }}
+                />
+                Uploading…
+              </span>
+            ) : (
+              'Upload & Import'
+            )}
+          </button>
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        </div>
+
+        {/* Error state */}
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm animate-fade-in">
+            <span className="font-semibold text-red-700">❌ Error:</span>{' '}
+            <span className="text-red-600">{error}</span>
+          </div>
+        )}
+
+        {/* Success state */}
+        {result && (
+          <div className="mt-4 p-5 bg-emerald-50 border border-emerald-200 rounded-xl animate-fade-in">
+            <p className="font-semibold text-emerald-800 mb-2">✅ Import Successful!</p>
+            <ul className="text-sm text-emerald-700 space-y-1 list-disc list-inside">
+              <li>Rows processed: <span className="font-medium">{result.rows_imported}</span></li>
+              <li>Channels detected: <span className="font-medium">{result.channels.join(', ')}</span></li>
+              <li>Date range: <span className="font-medium">{result.date_range.start} → {result.date_range.end}</span></li>
+            </ul>
+            <div className="mt-4">
+              <a
+                href="/"
+                className="inline-flex items-center gap-1.5 font-medium text-indigo-600 hover:text-indigo-800 transition-colors text-sm"
+              >
+                → View Dashboard
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
