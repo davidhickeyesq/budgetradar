@@ -11,7 +11,7 @@ This document outlines the next planned features and technical improvements for 
 
 ## Phase 2: Scenario Planning (Next)
 - [ ] **"What-If" Simulator Page**: UI sliders to adjust budget per channel.
-- [ ] **Revenue Projection**: Visualize estimated revenue based on fitted curves.
+- [ ] **Conversion Projection**: Visualize estimated conversions based on fitted curves.
 - [ ] **Budget Saving**: Ability to save multiple scenario configurations.
 
 ## Phase 3: Advanced Analytics

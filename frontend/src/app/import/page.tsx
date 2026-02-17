@@ -12,7 +12,7 @@ export default function ImportPage() {
             <div className="mb-2 animate-fade-in">
                 <h1 className="text-2xl font-bold text-slate-900">Import Marketing Data</h1>
                 <p className="text-slate-500 mt-1">
-                    Upload your historical marketing spend and revenue data to generate efficiency curves.
+                    Upload your historical marketing spend and conversions data to generate efficiency curves.
                 </p>
             </div>
 
@@ -25,14 +25,14 @@ export default function ImportPage() {
                 </p>
 
                 <div className="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono text-sm text-slate-700 overflow-x-auto">
-                    date,channel_name,spend,revenue,[impressions]
+                    date,channel_name,spend,conversions,[impressions]
                 </div>
 
                 <ul className="mt-4 list-disc list-inside text-sm text-slate-600 space-y-2">
                     <li><strong>date:</strong> YYYY-MM-DD format (e.g., 2025-01-31)</li>
                     <li><strong>channel_name:</strong> Name of the marketing channel</li>
                     <li><strong>spend:</strong> Daily spend amount (numeric, no currency symbols)</li>
-                    <li><strong>revenue:</strong> Daily attributed revenue (numeric, no currency symbols)</li>
+                    <li><strong>conversions:</strong> Daily conversions (numeric, decimals allowed)</li>
                     <li><strong>impressions:</strong> (Optional) Number of impressions</li>
                 </ul>
 

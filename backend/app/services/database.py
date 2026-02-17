@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, select, desc
+from sqlalchemy import create_engine, select, desc, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 from functools import lru_cache
 import numpy as np
@@ -24,6 +24,31 @@ def get_session() -> Session:
 def init_db():
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
+    migrate_daily_metrics_revenue_to_conversions()
+
+
+def migrate_daily_metrics_revenue_to_conversions() -> bool:
+    """
+    Idempotent legacy migration:
+    Rename daily_metrics.revenue -> daily_metrics.conversions when needed.
+
+    Returns True when a rename was performed, otherwise False.
+    """
+    engine = get_engine()
+    inspector = inspect(engine)
+
+    if not inspector.has_table("daily_metrics"):
+        return False
+
+    column_names = {column["name"] for column in inspector.get_columns("daily_metrics")}
+    if "revenue" in column_names and "conversions" not in column_names:
+        with engine.begin() as connection:
+            connection.execute(
+                text("ALTER TABLE daily_metrics RENAME COLUMN revenue TO conversions")
+            )
+        return True
+
+    return False
 
 
 def fetch_daily_metrics(
@@ -31,13 +56,13 @@ def fetch_daily_metrics(
     channel_name: str,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Fetch daily spend and revenue for a channel, ordered by date.
-    Returns (spend_array, revenue_array)
+    Fetch daily spend and conversions for a channel, ordered by date.
+    Returns (spend_array, conversions_array)
     """
     session = get_session()
     try:
         stmt = (
-            select(DailyMetric.spend, DailyMetric.revenue)
+            select(DailyMetric.spend, DailyMetric.conversions)
             .where(DailyMetric.account_id == account_id)
             .where(DailyMetric.channel_name == channel_name)
             .order_by(DailyMetric.date)
@@ -47,11 +72,11 @@ def fetch_daily_metrics(
         if not result:
             return np.array([]), np.array([])
         
-        # result is list of tuples (spend, revenue)
+        # result is list of tuples (spend, conversions)
         spend = np.array([float(row[0] or 0) for row in result])
-        revenue = np.array([float(row[1] or 0) for row in result])
-        
-        return spend, revenue
+        conversions = np.array([float(row[1] or 0) for row in result])
+
+        return spend, conversions
     finally:
         session.close()
 

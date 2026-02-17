@@ -24,7 +24,7 @@ class DailyMetric(Base):
     date = Column(Date, nullable=False, index=True)
     channel_name = Column(String, nullable=False)
     spend = Column(Numeric(10, 2), nullable=False)
-    revenue = Column(Numeric(10, 2), nullable=False)
+    conversions = Column(Numeric(10, 2), nullable=False)
     impressions = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

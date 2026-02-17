@@ -56,7 +56,7 @@ The generic `docker-compose up` command orchestrates three services to Create a 
 2. **Analysis:**
    - Frontend requests `analyze-channels`
    - Backend fetches raw daily metrics from Postgres
-   - Backend fits Hill Curve: $Revenue = \text{MaxYield} \times \frac{Spend^\beta}{\kappa^\beta + Spend^\beta}$
+   - Backend fits Hill Curve: $Conversions = \text{MaxYield} \times \frac{Spend^\beta}{\kappa^\beta + Spend^\beta}$
    - Backend calculates Marginal CPA at current spend level
    - Backend returns Traffic Light status (Green/Yellow/Red/Grey)
 
@@ -65,7 +65,7 @@ The generic `docker-compose up` command orchestrates three services to Create a 
 **Schema Definition:**
 
 - **accounts:** `id (UUID), name`
-- **daily_metrics:** `account_id, date, channel_name, spend, revenue, impressions`
+- **daily_metrics:** `account_id, date, channel_name, spend, conversions, impressions`
   - *Constraint:* Unique (account_id, date, channel_name)
 - **mmm_models:** `account_id, channel_name, alpha, beta, kappa...`
   - Stores the fitted parameters for caching/reference.

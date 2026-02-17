@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS daily_metrics (
     date DATE NOT NULL,
     channel_name TEXT NOT NULL,
     spend NUMERIC(10, 2) NOT NULL,
-    revenue NUMERIC(10, 2) NOT NULL,
+    conversions NUMERIC(10, 2) NOT NULL,
     impressions INTEGER,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(account_id, date, channel_name)

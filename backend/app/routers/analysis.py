@@ -30,20 +30,20 @@ async def fit_model(request: FitModelRequest):
     """
     Fit Hill Function model for a specific channel and calculate marginal CPA.
     """
-    spend, revenue = fetch_daily_metrics(request.account_id, request.channel_name)
+    spend, conversions = fetch_daily_metrics(request.account_id, request.channel_name)
     
     if len(spend) == 0:
         raise HTTPException(status_code=404, detail="No data found for this channel")
     
-    fit_result = fit_hill_model(spend, revenue)
+    fit_result = fit_hill_model(spend, conversions)
     
     if fit_result is None or fit_result.status != "success":
         status_msg = fit_result.status if fit_result else "fitting failed"
         
         if "insufficient_data" in status_msg:
             current = get_current_spend(request.account_id, request.channel_name)
-            total_revenue = float(revenue.sum())
-            avg_cpa = float(spend.sum()) / total_revenue if total_revenue > 0 else None
+            total_conversions = float(conversions.sum())
+            avg_cpa = float(spend.sum()) / total_conversions if total_conversions > 0 else None
             
             return FitModelResponse(
                 success=False,
@@ -107,17 +107,17 @@ async def analyze_channels(request: ChannelAnalysisRequest):
     results: list[MarginalCpaResult] = []
     
     for channel_name in channels:
-        spend, revenue = fetch_daily_metrics(request.account_id, channel_name)
+        spend, conversions = fetch_daily_metrics(request.account_id, channel_name)
         
         if len(spend) == 0:
             continue
         
-        fit_result = fit_hill_model(spend, revenue)
+        fit_result = fit_hill_model(spend, conversions)
         current_spend = get_current_spend(request.account_id, channel_name)
         
         if fit_result is None or fit_result.status != "success":
-            total_revenue = float(revenue.sum())
-            avg_cpa = float(spend.sum()) / total_revenue if total_revenue > 0 else None
+            total_conversions = float(conversions.sum())
+            avg_cpa = float(spend.sum()) / total_conversions if total_conversions > 0 else None
             
             results.append(MarginalCpaResult(
                 channel_name=channel_name,

@@ -15,7 +15,7 @@ We are building a tool that solves "Blended ROAS Blindness." Marketers optimize 
 ## 3. Data Schema
 *Note: Schema is identical for both Local and Cloud versions.*
 - `accounts`: UUID, name.
-- `daily_metrics`: date, channel_name, spend, revenue, impressions.
+- `daily_metrics`: date, channel_name, spend, conversions, impressions.
   - *Constraint:* Unique (account_id, date, channel_name)
 - `mmm_models`: account_id, channel_name, alpha (adstock), beta (slope), kappa (half-saturation), max_yield (asymptote).
 - `scenarios`: Stores future budget allocation scenarios (JSONB).

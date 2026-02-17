@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 import pandas as pd
 import io
 import uuid
@@ -18,7 +18,7 @@ async def import_csv(
 ) -> Dict[str, Any]:
     """
     Import daily metrics from a CSV file.
-    Required columns: date, channel_name, spend, revenue
+    Required columns: date, channel_name, spend, conversions
     Optional columns: impressions
     """
     if not file.filename.endswith('.csv'):
@@ -29,7 +29,7 @@ async def import_csv(
         df = pd.read_csv(io.BytesIO(content))
         
         # Verify required columns
-        required_cols = {'date', 'channel_name', 'spend', 'revenue'}
+        required_cols = {'date', 'channel_name', 'spend', 'conversions'}
         if not required_cols.issubset(df.columns):
             missing = required_cols - set(df.columns)
             raise HTTPException(
@@ -56,7 +56,7 @@ async def import_csv(
             # Basic data cleaning
             df['date'] = pd.to_datetime(df['date']).dt.date
             df['spend'] = pd.to_numeric(df['spend'], errors='coerce').fillna(0)
-            df['revenue'] = pd.to_numeric(df['revenue'], errors='coerce').fillna(0)
+            df['conversions'] = pd.to_numeric(df['conversions'], errors='coerce').fillna(0)
             
             if 'impressions' in df.columns:
                 df['impressions'] = pd.to_numeric(df['impressions'], errors='coerce').fillna(0).astype(int)
@@ -77,7 +77,7 @@ async def import_csv(
                 
                 if existing:
                     existing.spend = row['spend']
-                    existing.revenue = row['revenue']
+                    existing.conversions = row['conversions']
                     existing.impressions = row['impressions']
                 else:
                     new_metric = DailyMetric(
@@ -85,7 +85,7 @@ async def import_csv(
                         date=row['date'],
                         channel_name=row['channel_name'],
                         spend=row['spend'],
-                        revenue=row['revenue'],
+                        conversions=row['conversions'],
                         impressions=row['impressions']
                     )
                     session.add(new_metric)
@@ -117,7 +117,7 @@ async def import_csv(
 @router.get("/template")
 async def get_csv_template():
     """Download a template CSV file for importing data."""
-    csv_content = """date,channel_name,spend,revenue,impressions
+    csv_content = """date,channel_name,spend,conversions,impressions
 2025-01-01,Google Ads,1000.50,5600.00,25000
 2025-01-02,Google Ads,1100.00,5800.00,26000"""
     
