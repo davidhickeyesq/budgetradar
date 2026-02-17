@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -8,8 +9,8 @@ class Settings(BaseSettings):
     use_supabase: bool = False
     
     # Supabase (Optional for local mode)
-    supabase_url: str | None = None
-    supabase_service_key: str | None = None
+    supabase_url: Optional[str] = None
+    supabase_service_key: Optional[str] = None
     
     min_data_days: int = 21
     marginal_increment: float = 0.10
@@ -25,6 +26,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 @lru_cache
