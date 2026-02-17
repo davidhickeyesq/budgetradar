@@ -41,9 +41,9 @@ The database is **auto-seeded** with demo data on first run. You should see Goog
 
 ## 📊 How It Works
 
-1. **Ingest Data:** Upload daily spend/revenue CSVs or use the auto-generated seed data.
+1. **Ingest Data:** Upload daily spend/conversions CSVs or use the auto-generated seed data.
 2. **Fit Hill Function:** The backend fits a Hill Function curve ($S$-curve) to your historical data:
-   $$Revenue = \text{MaxYield} \times \frac{Spend^\beta}{\kappa^\beta + Spend^\beta}$$
+   $$Conversions = \text{MaxYield} \times \frac{Spend^\beta}{\kappa^\beta + Spend^\beta}$$
 3. **Calculate Marginal CPA:** It computes the cost to acquire the *next* conversion at your current spend level.
 4. **Traffic Light Logic:**
    - 🟢 **Green:** Marginal CPA < Target (Scale spend)
@@ -77,7 +77,7 @@ Download the [template CSV here](http://localhost:8000/api/import/template).
 - `date`: YYYY-MM-DD
 - `channel_name`: String (e.g. "Google Ads")
 - `spend`: Numeric (no currency symbols)
-- `revenue`: Numeric (no currency symbols)
+- `conversions`: Numeric (decimals allowed)
 
 **Optional:**
 - `impressions`: Integer

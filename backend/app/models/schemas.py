@@ -6,7 +6,7 @@ from datetime import date
 class DailyMetric(BaseModel):
     date: date
     spend: float
-    revenue: float
+    conversions: float
 
 
 class HillParameters(BaseModel):

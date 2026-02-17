@@ -105,7 +105,7 @@ Defined in `backend/migrations/001_init.sql`:
 - `id` (UUID, PK), `name` (Text)
 
 ### daily_metrics
-- `account_id` (FK), `date`, `channel_name`, `spend`, `revenue`, `impressions`
+- `account_id` (FK), `date`, `channel_name`, `spend`, `conversions`, `impressions`
 - **Constraint:** Unique(account_id, date, channel_name)
 
 ### mmm_models

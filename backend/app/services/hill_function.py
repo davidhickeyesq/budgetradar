@@ -53,10 +53,10 @@ def apply_adstock(spend: np.ndarray, alpha: float) -> np.ndarray:
 
 def fit_hill_model(
     spend: np.ndarray,
-    revenue: np.ndarray,
+    conversions: np.ndarray,
 ) -> Optional[HillFitResult]:
     """
-    Fit Hill Function to spend/revenue data using grid search for alpha
+    Fit Hill Function to spend/conversions data using grid search for alpha
     and curve_fit for Hill parameters.
     
     Returns None if fitting fails or data is insufficient.
@@ -70,8 +70,8 @@ def fit_hill_model(
             status=f"insufficient_data: {non_zero_days} days < {settings.min_data_days} required"
         )
     
-    max_revenue = np.max(revenue)
-    max_yield_upper = settings.max_yield_multiplier * max_revenue
+    max_conversions = np.max(conversions)
+    max_yield_upper = settings.max_yield_multiplier * max_conversions
     
     alpha_values = np.arange(
         settings.alpha_min,
@@ -86,7 +86,7 @@ def fit_hill_model(
         adstocked_spend = apply_adstock(spend, alpha)
         
         try:
-            initial_guess = [max_revenue * 1.5, 1.0, np.median(adstocked_spend[adstocked_spend > 0])]
+            initial_guess = [max_conversions * 1.5, 1.0, np.median(adstocked_spend[adstocked_spend > 0])]
             
             bounds = (
                 [0, settings.beta_min, 1e-6],
@@ -96,7 +96,7 @@ def fit_hill_model(
             popt, _ = curve_fit(
                 hill_function,
                 adstocked_spend,
-                revenue,
+                conversions,
                 p0=initial_guess,
                 bounds=bounds,
                 maxfev=5000,
@@ -105,8 +105,8 @@ def fit_hill_model(
             max_yield_fit, beta_fit, kappa_fit = popt
             
             predicted = hill_function(adstocked_spend, max_yield_fit, beta_fit, kappa_fit)
-            ss_res = np.sum((revenue - predicted) ** 2)
-            ss_tot = np.sum((revenue - np.mean(revenue)) ** 2)
+            ss_res = np.sum((conversions - predicted) ** 2)
+            ss_tot = np.sum((conversions - np.mean(conversions)) ** 2)
             r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
             
             if r_squared > best_r_squared:

@@ -14,12 +14,12 @@ import os
 # Add parent directory to path so we can import app modules
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from app.services.database import get_session
+from app.services.database import get_session, init_db
 from app.models.db_models import Account, DailyMetric, MMMModel
 
 
 def hill_function(spend: float, max_yield: float, beta: float, kappa: float) -> float:
-    """Generate revenue using Hill function with noise."""
+    """Generate conversions using Hill function with noise."""
     if spend <= 0:
         return 0
     base = max_yield * (spend ** beta) / (kappa ** beta + spend ** beta)
@@ -49,8 +49,8 @@ def generate_channel_data(
         spend = base_spend * (1 + spend_growth * i / days) * daily_variance * weekend_factor
         spend = round(spend, 2)
         
-        revenue = hill_function(spend, max_yield, beta, kappa)
-        revenue = round(revenue, 2)
+        conversions = hill_function(spend, max_yield, beta, kappa)
+        conversions = round(conversions, 2)
         
         impressions = int(spend * np.random.uniform(80, 120))
         
@@ -58,7 +58,7 @@ def generate_channel_data(
             "date": current_date,
             "channel_name": channel_name,
             "spend": spend,
-            "revenue": revenue,
+            "conversions": conversions,
             "impressions": impressions,
         })
     
@@ -66,6 +66,8 @@ def generate_channel_data(
 
 
 def main():
+    # Ensure tables exist and legacy revenue->conversions migration runs.
+    init_db()
     session = get_session()
     
     try:
@@ -128,7 +130,7 @@ def main():
                         date=row["date"],
                         channel_name=row["channel_name"],
                         spend=row["spend"],
-                        revenue=row["revenue"],
+                        conversions=row["conversions"],
                         impressions=row["impressions"],
                     ))
             
