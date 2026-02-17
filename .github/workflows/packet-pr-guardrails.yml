@@ -1,0 +1,59 @@
+name: Packet PR Guardrails
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-packet-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title and required packet metadata
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+
+          body="$(printf '%s\n' "${PR_BODY:-}" | tr -d '\r')"
+          fail=0
+
+          require_pattern() {
+            local pattern="$1"
+            local message="$2"
+            if ! printf '%s\n' "$body" | grep -Eq "$pattern"; then
+              echo "::error::$message"
+              fail=1
+            fi
+          }
+
+          if ! printf '%s\n' "$PR_TITLE" | grep -Eq '^\[P[0-9]{3}\][[:space:]]+.+$'; then
+            echo "::error::PR title must start with [P00X]. Example: [P001] Fix account context mismatch"
+            fail=1
+          fi
+
+          require_pattern '^Packet ID:[[:space:]]*P[0-9]{3}[[:space:]]*$' \
+            "PR body must include 'Packet ID: P00X'."
+          require_pattern '^Spec Path:[[:space:]]*/.*/docs/execution/packets/P[0-9]{3}[-a-z0-9]*\.md[[:space:]]*$' \
+            "PR body must include 'Spec Path' pointing to /docs/execution/packets/P00X-*.md."
+          require_pattern '^Issue:[[:space:]]*(#[0-9]+|https://github\.com/[^[:space:]]+/[^[:space:]]+/issues/[0-9]+)[[:space:]]*$' \
+            "PR body must include 'Issue: #<number>' or full issue URL."
+          require_pattern '^##[[:space:]]+Validation[[:space:]]*$' \
+            "PR body must include a '## Validation' section."
+
+          if printf '%s\n' "$body" | grep -Eq '^Packet ID:[[:space:]]*P000[[:space:]]*$'; then
+            echo "::error::Replace template placeholder Packet ID (P000) with the real packet id."
+            fail=1
+          fi
+
+          if printf '%s\n' "$body" | grep -Eq '^Issue:[[:space:]]*#000[[:space:]]*$'; then
+            echo "::error::Replace template placeholder Issue (#000) with the real issue."
+            fail=1
+          fi
+
+          if [ "$fail" -ne 0 ]; then
+            exit 1
+          fi

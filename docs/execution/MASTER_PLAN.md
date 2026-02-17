@@ -32,6 +32,17 @@ Dependency chain:
 - Branch pattern: `codex/p00x-short-name`
 - PR title pattern: `[P00X] short title`
 
+## Enforcement Layer
+
+The following controls are now committed in-repo:
+
+1. Handoff protocol:
+   `/Users/davidhickey/Documents/Projects/budgetradar/docs/execution/HANDOFF_PROTOCOL.md`
+2. PR template contract:
+   `/Users/davidhickey/Documents/Projects/budgetradar/.github/PULL_REQUEST_TEMPLATE.md`
+3. CI check for packet PR metadata and title:
+   `/Users/davidhickey/Documents/Projects/budgetradar/.github/workflows/packet-pr-guardrails.yml`
+
 ## Day-by-Day Rollout
 
 ### Day 1
@@ -54,6 +65,7 @@ Dependency chain:
    - PR open: `In Review`
    - PR merge: `Done`
 3. Promote next packet from `Backlog` to `Ready`.
+4. Use CI guardrail failures as hard stop until PR metadata contract is fixed.
 
 ## Governance Rules
 

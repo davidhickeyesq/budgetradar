@@ -9,10 +9,9 @@
 3. Represent Epic as parent issue with packet issues as sub-issues.
 4. Execute one packet PR at a time to minimize merge risk.
 5. Keep repo packet docs as canonical; project fields are operational mirror.
+6. Enforce packet PR metadata with in-repo PR template + CI guardrail.
 
 ## Deferred Decisions
 
-1. Whether to enforce PR contract with `.github/PULL_REQUEST_TEMPLATE.md`.
-2. Whether to add issue templates for Epic/Packet.
-3. Whether to add project automations in phase 2.
-4. Whether to add CI check that enforces `[P00X]` PR title prefix.
+1. Whether to add issue templates for Epic/Packet.
+2. Whether to add project automations in phase 2.

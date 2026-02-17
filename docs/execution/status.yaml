@@ -11,6 +11,10 @@ epic:
   number: "14"
   title: "EPIC: Multi-agent hardening sprint"
   url: "https://github.com/davidhickeyesq/budgetradar/issues/14"
+guardrails:
+  handoff_protocol: "/Users/davidhickey/Documents/Projects/budgetradar/docs/execution/HANDOFF_PROTOCOL.md"
+  pr_template: "/Users/davidhickey/Documents/Projects/budgetradar/.github/PULL_REQUEST_TEMPLATE.md"
+  ci_workflow: "/Users/davidhickey/Documents/Projects/budgetradar/.github/workflows/packet-pr-guardrails.yml"
 packets:
   - id: "P001"
     title: "Account context + import UX"

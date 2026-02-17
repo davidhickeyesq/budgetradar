@@ -25,11 +25,18 @@ Project views programmatically. Configure/rename views in the GitHub web UI.
 ## Files
 
 - `MASTER_PLAN.md`: overall sequence, workflow, and governance.
+- `HANDOFF_PROTOCOL.md`: exact start/update/PR/merge handoff rules.
 - `packets/P001-account-context.md`
 - `packets/P002-alpha-parity.md`
 - `packets/P003-ads-ops-readiness.md`
 - `status.yaml`: machine-readable packet status index.
 - `decisions.md`: locked decisions and rationale.
+
+## Enforcement
+
+- PR template: `/Users/davidhickey/Documents/Projects/budgetradar/.github/PULL_REQUEST_TEMPLATE.md`
+- CI guardrail workflow:
+  `/Users/davidhickey/Documents/Projects/budgetradar/.github/workflows/packet-pr-guardrails.yml`
 
 ## PR Contract
 
