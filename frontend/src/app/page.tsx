@@ -46,18 +46,25 @@ export default function Home() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading channel analysis...</div>
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-full border-3 border-indigo-200 border-t-indigo-600"
+            style={{ animation: 'spin 0.8s linear infinite' }}
+          />
+          <p className="text-sm text-slate-500">Loading channel analysis…</p>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <h3 className="text-red-800 font-medium">Error loading data</h3>
+      <div className="card-static border-status-red p-6 animate-fade-in">
+        <h3 className="font-semibold text-red-800">Error loading data</h3>
         <p className="text-red-600 text-sm mt-1">{error}</p>
-        <p className="text-red-600 text-sm mt-2">
-          Make sure the backend is running: <code>uvicorn app.main:app --reload</code>
+        <p className="text-red-500 text-sm mt-3">
+          Make sure the backend is running: <code className="bg-red-50 px-1.5 py-0.5 rounded text-xs">uvicorn app.main:app --reload</code>
         </p>
       </div>
     )
@@ -69,7 +76,7 @@ export default function Home() {
         <div className="lg:col-span-2">
           <TrafficLightRadar channels={channels} targetCpa={TARGET_CPA} />
         </div>
-        <div className="space-y-6">
+        <div className="animate-fade-in-delay-1">
           <SummaryCard channels={channels} />
         </div>
       </div>
@@ -85,39 +92,45 @@ function SummaryCard({ channels }: { channels: ChannelMetrics[] }) {
   const greyChannels = channels.filter(c => c.trafficLight === 'grey').length
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Summary</h3>
-      <dl className="space-y-3">
-        <div className="flex justify-between">
-          <dt className="text-sm text-gray-500">Total Daily Spend</dt>
-          <dd className="text-sm font-medium text-gray-900">
-            ${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-sm text-gray-500">Channels Analyzed</dt>
-          <dd className="text-sm font-medium text-gray-900">{channels.length}</dd>
-        </div>
-        <hr />
-        <div className="flex justify-between">
-          <dt className="text-sm text-gray-500">🟢 Scale</dt>
-          <dd className="text-sm font-medium text-emerald-600">{greenChannels}</dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-sm text-gray-500">🟡 Maintain</dt>
-          <dd className="text-sm font-medium text-yellow-600">{yellowChannels}</dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-sm text-gray-500">🔴 Cut</dt>
-          <dd className="text-sm font-medium text-red-600">{redChannels}</dd>
-        </div>
+    <div className="card-static p-6 space-y-5">
+      <h3 className="text-lg font-semibold text-slate-900">Summary</h3>
+
+      {/* Hero spend number */}
+      <div>
+        <p className="text-xs uppercase tracking-wider text-slate-400 mb-1">Total Daily Spend</p>
+        <p className="hero-number">
+          ${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-slate-500">Channels Analyzed</span>
+        <span className="font-semibold text-slate-800 text-lg">{channels.length}</span>
+      </div>
+
+      <hr className="border-slate-100" />
+
+      {/* Status indicators */}
+      <div className="space-y-3">
+        <StatusRow dot="status-dot status-dot-green" label="Scale" count={greenChannels} color="text-emerald-600" />
+        <StatusRow dot="status-dot status-dot-amber" label="Maintain" count={yellowChannels} color="text-amber-600" />
+        <StatusRow dot="status-dot status-dot-red" label="Cut" count={redChannels} color="text-red-600" />
         {greyChannels > 0 && (
-          <div className="flex justify-between">
-            <dt className="text-sm text-gray-500">⚪ No Data</dt>
-            <dd className="text-sm font-medium text-gray-400">{greyChannels}</dd>
-          </div>
+          <StatusRow dot="status-dot status-dot-grey" label="No Data" count={greyChannels} color="text-slate-400" />
         )}
-      </dl>
+      </div>
+    </div>
+  )
+}
+
+function StatusRow({ dot, label, count, color }: { dot: string; label: string; count: number; color: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2.5">
+        <span className={dot} />
+        <span className="text-sm text-slate-600">{label}</span>
+      </div>
+      <span className={`text-sm font-semibold ${color}`}>{count}</span>
     </div>
   )
 }
