@@ -163,3 +163,6 @@ Rules:
 - GitHub Project is operational mirror only.
 - Packet PRs must use `[P00X]` title format and include packet metadata per PR template.
 - Non-packet execution-infra PRs must use `[CHORE]` or `[EPIC]` prefix.
+- Packet assignment prompts must require status mirroring:
+  - before coding: set `Execution Status -> In Progress` and confirm in first reply
+  - before done: set `Execution Status -> In Review` and provide PR URL

@@ -48,3 +48,15 @@ All packet PRs must:
 
 Non-packet execution-infra PRs must use `[CHORE]` or `[EPIC]` prefix and still
 include a `Validation` section.
+
+## Minimal Control Loop
+
+Use this lightweight loop for every packet. Do not add extra process unless this
+fails repeatedly.
+
+1. Kickoff prompt must include:
+   `Before coding, set Project Execution Status for this packet to In Progress and confirm it in your first reply.`
+2. Completion prompt must include:
+   `Before done, set Project Execution Status for this packet to In Review and post the PR URL.`
+3. Human owner moves packet from `In Review` to `Done` after merge.
+4. Then promote the next dependency-cleared packet to `Ready`.
