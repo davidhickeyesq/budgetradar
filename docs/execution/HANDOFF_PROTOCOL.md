@@ -11,15 +11,6 @@ Use this protocol for every packet handoff across Codex and Google Anti-Gravity.
 
 Repo packet docs are canonical. GitHub Project is an operational mirror.
 
-## Operator Prompt Contract
-
-When assigning a packet to any agent, include both lines exactly:
-
-1. `Before coding, set Project Execution Status for this packet to In Progress and confirm it in your first reply.`
-2. `Before done, set Project Execution Status for this packet to In Review and post the PR URL.`
-
-This is the default operating contract. Keep it simple and consistent.
-
 ## Start Protocol
 
 1. Read canonical sources in order.
@@ -34,7 +25,6 @@ This is the default operating contract. Keep it simple and consistent.
    - `Execution Status -> In Progress`
    - set `Branch`
    - set `Start Date`
-7. First reply in chat must explicitly confirm project status was set.
 
 ## During Work
 
@@ -56,7 +46,6 @@ This is the default operating contract. Keep it simple and consistent.
    - `updated_at` refreshed
    - GitHub Project `Execution Status -> In Review`
    - set `PR URL`
-4. Final reply must include PR URL and confirmation status is `In Review`.
 
 ## Merge Protocol
 
