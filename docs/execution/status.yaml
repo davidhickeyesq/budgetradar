@@ -1,4 +1,4 @@
-updated_at: "2026-02-17"
+updated_at: "2026-02-18"
 project:
   name: "BudgetRadar Execution"
   type: "github-projects-v2"
@@ -32,9 +32,9 @@ packets:
     target_date: ""
   - id: "P002"
     title: "Alpha parity"
-    state: "TODO"
-    execution_status: "Backlog"
-    owner: ""
+    state: "IN_PROGRESS"
+    execution_status: "In Progress"
+    owner: "codex"
     issue_number: "16"
     issue_url: "https://github.com/davidhickeyesq/budgetradar/issues/16"
     project_item_id: "PVTI_lAHOACofT84BPcnczgloLM0"
@@ -43,7 +43,7 @@ packets:
     depends_on:
       - "P001"
     spec_path: "/Users/davidhickey/Documents/Projects/budgetradar/docs/execution/packets/P002-alpha-parity.md"
-    start_date: ""
+    start_date: "2026-02-18"
     target_date: ""
   - id: "P003"
     title: "Ads-ops readiness"

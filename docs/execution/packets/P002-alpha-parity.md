@@ -1,14 +1,14 @@
 ---
 id: P002
 title: Alpha parity
-state: TODO
-execution_status: Backlog
-owner:
+state: IN_PROGRESS
+execution_status: In Progress
+owner: codex
 branch: codex/p002-alpha-parity
 pr:
 depends_on:
   - P001
-updated_at: 2026-02-17
+updated_at: 2026-02-18
 issue: https://github.com/davidhickeyesq/budgetradar/issues/16
 project_item: PVTI_lAHOACofT84BPcnczgloLM0
 epic_issue: https://github.com/davidhickeyesq/budgetradar/issues/14
