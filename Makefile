@@ -16,8 +16,17 @@ dev: ## Start development server (docker-compose up --build)
 seed: ## Re-seed the database with fresh demo data
 	docker-compose exec backend python scripts/seed_data.py
 
-test: ## Run backend tests (requires pytest)
-	docker-compose exec backend pytest
+test: ## Run backend tests (local first, Docker fallback)
+	@if [ -x backend/.venv/bin/pytest ]; then \
+		echo "Running backend tests with backend/.venv/bin/pytest"; \
+		PYTHONPATH=backend backend/.venv/bin/pytest backend/tests; \
+	elif command -v pytest >/dev/null 2>&1; then \
+		echo "Running backend tests with system pytest"; \
+		PYTHONPATH=backend pytest backend/tests; \
+	else \
+		echo "No local pytest found, falling back to Docker"; \
+		docker-compose run --rm backend pytest; \
+	fi
 
 logs: ## Stream logs from all containers
 	docker-compose logs -f
