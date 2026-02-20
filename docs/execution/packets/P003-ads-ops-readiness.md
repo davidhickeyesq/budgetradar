@@ -1,14 +1,14 @@
 ---
 id: P003
 title: Ads-ops readiness
-state: TODO
-execution_status: Backlog
-owner:
+state: IN_PROGRESS
+execution_status: In Progress
+owner: codex
 branch: codex/p003-ads-ops-readiness
 pr:
 depends_on:
   - P002
-updated_at: 2026-02-17
+updated_at: 2026-02-20
 issue: https://github.com/davidhickeyesq/budgetradar/issues/15
 project_item: PVTI_lAHOACofT84BPcnczgloLLk
 epic_issue: https://github.com/davidhickeyesq/budgetradar/issues/14
