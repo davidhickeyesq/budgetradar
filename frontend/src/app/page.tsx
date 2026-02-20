@@ -19,6 +19,19 @@ function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
     trafficLight: result.traffic_light,
     rSquared: result.model_params?.r_squared ?? null,
     modelParams: result.model_params ?? null,
+    curvePoints: result.curve_points
+      ? result.curve_points.map((point) => ({
+          spend: point.spend,
+          marginalCpa: point.marginal_cpa,
+          zone: point.zone,
+        }))
+      : null,
+    currentPoint: result.current_point
+      ? {
+          spend: result.current_point.spend,
+          marginalCpa: result.current_point.marginal_cpa,
+        }
+      : null,
   }
 }
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Literal, Optional
 from datetime import date
 
@@ -17,6 +17,17 @@ class HillParameters(BaseModel):
     r_squared: float
 
 
+class CurvePoint(BaseModel):
+    spend: float
+    marginal_cpa: float
+    zone: Literal["green", "yellow", "red"]
+
+
+class CurrentPoint(BaseModel):
+    spend: float
+    marginal_cpa: float
+
+
 class MarginalCpaResult(BaseModel):
     channel_name: str
     current_spend: float
@@ -25,6 +36,8 @@ class MarginalCpaResult(BaseModel):
     traffic_light: Literal["green", "yellow", "red", "grey"]
     recommendation: str
     model_params: Optional[HillParameters]
+    curve_points: list[CurvePoint] = Field(default_factory=list)
+    current_point: Optional[CurrentPoint] = None
 
 
 class FitModelRequest(BaseModel):

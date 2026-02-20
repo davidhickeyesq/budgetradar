@@ -8,6 +8,17 @@ export interface HillParameters {
   r_squared: number
 }
 
+export interface CurvePoint {
+  spend: number
+  marginalCpa: number
+  zone: 'green' | 'yellow' | 'red'
+}
+
+export interface CurrentPoint {
+  spend: number
+  marginalCpa: number
+}
+
 export interface ChannelMetrics {
   channelName: string
   currentSpend: number
@@ -18,6 +29,8 @@ export interface ChannelMetrics {
   trafficLight: TrafficLight
   rSquared: number | null
   modelParams: HillParameters | null
+  curvePoints: CurvePoint[] | null
+  currentPoint: CurrentPoint | null
 }
 
 export interface MarginalCpaResult {

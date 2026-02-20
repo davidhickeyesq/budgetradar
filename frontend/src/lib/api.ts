@@ -8,6 +8,17 @@ export interface HillParameters {
   r_squared: number
 }
 
+export interface CurvePointPayload {
+  spend: number
+  marginal_cpa: number
+  zone: 'green' | 'yellow' | 'red'
+}
+
+export interface CurrentPointPayload {
+  spend: number
+  marginal_cpa: number
+}
+
 export interface MarginalCpaResult {
   channel_name: string
   current_spend: number
@@ -16,6 +27,8 @@ export interface MarginalCpaResult {
   traffic_light: 'green' | 'yellow' | 'red' | 'grey'
   recommendation: string
   model_params: HillParameters | null
+  curve_points?: CurvePointPayload[]
+  current_point?: CurrentPointPayload | null
 }
 
 export interface ChannelAnalysisResponse {
