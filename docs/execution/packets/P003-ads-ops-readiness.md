@@ -1,11 +1,11 @@
 ---
 id: P003
 title: Ads-ops readiness
-state: IN_PROGRESS
-execution_status: In Progress
+state: REVIEW
+execution_status: In Review
 owner: codex
 branch: codex/p003-ads-ops-readiness
-pr:
+pr: https://github.com/davidhickeyesq/budgetradar/pull/22
 depends_on:
   - P002
 updated_at: 2026-02-20
