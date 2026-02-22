@@ -14,7 +14,7 @@ make dev
 
 ## 📦 Tech Stack
 - **Framework:** Next.js 14+ (App Router)
-- **UI Component Library:** Tremor
+- **UI:** Tailwind CSS + custom components + Recharts
 - **Styling:** Tailwind CSS
 - **State Management:** React Hooks
 - **Data Fetching:** Fetch API

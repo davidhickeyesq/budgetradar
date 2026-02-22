@@ -6,9 +6,9 @@ We are building a tool that solves "Blended ROAS Blindness." Marketers optimize 
 - **The "Radar":** A dashboard showing Red/Yellow/Green traffic lights based on saturation.
 
 ## 2. Tech Stack & Architecture
-- **Frontend:** Next.js (App Router) + Tremor (Charts/UI).
+- **Frontend:** Next.js (App Router) + Tailwind CSS + Recharts/custom components.
 - **Backend:** FastAPI (Python 3.11) with SQLAlchemy.
-- **Database:** PostgreSQL (Local via Docker 🐳 or Cloud via Supabase ⚡).
+- **Database:** PostgreSQL (local-first via Docker 🐳).
 - **Math Engine:** A specialized Python service (FastAPI) using `scipy.optimize` and `numpy`.
     - *Constraint:* The math engine operates statelessly, fetching data from the DB, fitting curves, and saving parameters.
 
@@ -26,7 +26,7 @@ We use the **Hill Function** for diminishing returns:
 
 - **Marginal CPA Logic:**
   1. Calculate `y_current` at `current_spend`.
-  2. Calculate `y_next` at `current_spend * 1.01` (1% increment).
+  2. Calculate `y_next` at `current_spend * 1.10` (10% increment).
   3. `Marginal CPA` = `(Spend_Next - Spend_Current) / (y_next - y_current)`.
 
 ## 5. The "Traffic Light" Rules

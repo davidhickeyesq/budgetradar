@@ -1,11 +1,34 @@
 'use client';
 
+import { useState } from 'react';
 import { useDefaultAccountContext } from '@/lib/account-context';
+import { fetchCsvTemplate } from '@/lib/api';
 import CsvUploader from '../../components/CsvUploader';
 
 export default function ImportPage() {
     const { accountId, accountName, loading, error } = useDefaultAccountContext();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const [templateDownloading, setTemplateDownloading] = useState(false);
+    const [templateError, setTemplateError] = useState<string | null>(null);
+
+    async function handleDownloadTemplate() {
+        try {
+            setTemplateDownloading(true);
+            setTemplateError(null);
+            const blob = await fetchCsvTemplate();
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = 'budgetradar_template.csv';
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            setTemplateError(err instanceof Error ? err.message : 'Failed to download template');
+        } finally {
+            setTemplateDownloading(false);
+        }
+    }
 
     if (loading) {
         return (
@@ -57,13 +80,18 @@ export default function ImportPage() {
                     <li><strong>impressions:</strong> (Optional) Number of impressions</li>
                 </ul>
 
-                <div className="mt-6">
-                    <a
-                        href={`${apiUrl}/api/import/template`}
-                        className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 font-medium text-sm transition-colors"
+                <div className="mt-6 space-y-2">
+                    <button
+                        type="button"
+                        onClick={() => void handleDownloadTemplate()}
+                        disabled={templateDownloading}
+                        className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 font-medium text-sm transition-colors disabled:opacity-50"
                     >
-                        📥 Download example CSV template
-                    </a>
+                        📥 {templateDownloading ? 'Downloading template...' : 'Download example CSV template'}
+                    </button>
+                    {templateError && (
+                        <p className="text-xs text-red-600">{templateError}</p>
+                    )}
                 </div>
             </div>
 

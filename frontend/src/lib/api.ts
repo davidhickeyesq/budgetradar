@@ -1,4 +1,22 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const APP_API_KEY = process.env.NEXT_PUBLIC_APP_API_KEY
+
+function jsonHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (APP_API_KEY) {
+    headers['X-API-Key'] = APP_API_KEY
+  }
+  return headers
+}
+
+function apiHeaders(): Record<string, string> {
+  if (!APP_API_KEY) {
+    return {}
+  }
+  return { 'X-API-Key': APP_API_KEY }
+}
 
 export interface HillParameters {
   alpha: number
@@ -100,9 +118,7 @@ export async function analyzeChannels(
 ): Promise<ChannelAnalysisResponse> {
   const response = await fetch(`${API_URL}/api/analyze-channels`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: jsonHeaders(),
     body: JSON.stringify({
       account_id: accountId,
       target_cpa: targetCpa,
@@ -117,7 +133,9 @@ export async function analyzeChannels(
 }
 
 export async function getDefaultAccount(): Promise<DefaultAccountResponse> {
-  const response = await fetch(`${API_URL}/api/accounts/default`)
+  const response = await fetch(`${API_URL}/api/accounts/default`, {
+    headers: apiHeaders(),
+  })
 
   if (!response.ok) {
     throw new Error(`Default account API error: ${response.status}`)
@@ -131,9 +149,7 @@ export async function recommendScenario(
 ): Promise<ScenarioRecommendationResponse> {
   const response = await fetch(`${API_URL}/api/scenarios/recommend`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: jsonHeaders(),
     body: JSON.stringify(request),
   })
 
@@ -151,9 +167,7 @@ export async function saveScenario(
 ): Promise<ScenarioRecordPayload> {
   const response = await fetch(`${API_URL}/api/scenarios`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: jsonHeaders(),
     body: JSON.stringify({
       account_id: accountId,
       name,
@@ -169,7 +183,9 @@ export async function saveScenario(
 }
 
 export async function listScenarios(accountId: string): Promise<ScenarioListResponse> {
-  const response = await fetch(`${API_URL}/api/scenarios/${accountId}`)
+  const response = await fetch(`${API_URL}/api/scenarios/${accountId}`, {
+    headers: apiHeaders(),
+  })
 
   if (!response.ok) {
     throw new Error(`Scenario list API error: ${response.status}`)
@@ -180,9 +196,23 @@ export async function listScenarios(accountId: string): Promise<ScenarioListResp
 
 export async function healthCheck(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_URL}/api/health`)
+    const response = await fetch(`${API_URL}/api/health`, {
+      headers: apiHeaders(),
+    })
     return response.ok
   } catch {
     return false
   }
+}
+
+export async function fetchCsvTemplate(): Promise<Blob> {
+  const response = await fetch(`${API_URL}/api/import/template`, {
+    headers: apiHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Template download API error: ${response.status}`)
+  }
+
+  return response.blob()
 }

@@ -195,6 +195,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for deep dive.
 | `MARGINAL_INCREMENT` | 0.10 | Spend increment (10%) for marginal calc |
 | `REQUIRE_API_KEY` | `false` | Enable API key guardrail for protected API routes |
 | `APP_API_KEY` | _(empty)_ | Expected `X-API-Key` value when guardrail is enabled |
+| `NEXT_PUBLIC_APP_API_KEY` | _(empty)_ | Frontend API key header for protected backend mode |
 | `GOOGLE_ADS_MAX_SYNC_DAYS` | `93` | Max date span accepted by Google Ads sync endpoint |
 
 ---

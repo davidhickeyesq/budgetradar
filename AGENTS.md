@@ -11,19 +11,19 @@
 
 ### Frontend
 - **Framework:** Next.js 14+ (App Router)
-- **UI:** Tremor + Tailwind CSS
+- **UI:** Tailwind CSS + custom components (Recharts for charts)
 - **Language:** TypeScript
 - **State:** React Hooks
 
 ### Backend
 - **Framework:** FastAPI (Python 3.11)
 - **Math Engine:** scipy.optimize, numpy, pandas
-- **Database Access:** SQLAlchemy (Local) or Supabase Client (Cloud/Legacy)
+- **Database Access:** SQLAlchemy (local-first runtime)
 - **Purpose:** Curve-fitting (Hill Function), marginal CPA calculations, CSV processing
 
 ### Database
 - **Primary:** PostgreSQL 15
-- **Deployment:** Docker Container (Local) OR Supabase Platform (Cloud)
+- **Deployment:** Docker container (local-first)
 
 ---
 
@@ -86,7 +86,7 @@ Where:
 
 ### Backend → Database
 - **Local Mode:** Uses SQLAlchemy to connect to the local Postgres container.
-- **Cloud Mode:** Can be configured to use Supabase Client (if `USE_SUPABASE=true`).
+- **Cloud Mode:** Not currently wired in runtime config; local PostgreSQL is the supported path.
 - **Flow:** Reads `daily_metrics` → Fits Hill Function → Writes `mmm_models` → Returns Analysis.
 
 ### Python Engine Outputs
@@ -148,7 +148,6 @@ docker-compose down -v
 ## References
 - `README.md`: Quick Start
 - `ARCHITECTURE.md`: detailed Docker setup
-- `docs/MIGRATION.md`: Cloud deployment guide
 
 ## Multi-Agent Execution Protocol
 
