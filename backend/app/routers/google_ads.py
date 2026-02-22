@@ -1,6 +1,6 @@
 from datetime import date
 import re
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator, model_validator
@@ -41,6 +41,7 @@ class GoogleAdsSyncRequest(BaseModel):
 
 class GoogleAdsSyncResponse(BaseModel):
     success: bool
+    provider_mode: Literal["mock", "real"]
     rows_imported: int
     channels: list[str]
     date_range: dict[str, Any]
@@ -91,6 +92,7 @@ async def sync_google_ads(request: GoogleAdsSyncRequest):
 
         return GoogleAdsSyncResponse(
             success=True,
+            provider_mode=google_ads_client.provider_mode,
             rows_imported=rows_imported,
             channels=sorted(channels),
             date_range=date_range,
