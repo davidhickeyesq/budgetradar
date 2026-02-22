@@ -34,3 +34,10 @@ We use the **Hill Function** for diminishing returns:
 - **Green:** Marginal CPA < 0.9 * Target. (Scale Spend).
 - **Yellow:** Marginal CPA is within +/- 10% of Target. (Maintain).
 - **Red:** Marginal CPA > 1.1 * Target. (Cut Spend - Saturated).
+
+## 6. Google Ads Provider Modes
+- **`mock` (default):** deterministic local provider for local-first development and demos.
+- **`real`:** live Google Ads API provider for production data pulls.
+  - Required env vars: `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`,
+    `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`.
+  - Optional env var: `GOOGLE_ADS_LOGIN_CUSTOMER_ID`.

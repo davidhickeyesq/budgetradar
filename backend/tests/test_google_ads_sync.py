@@ -4,9 +4,8 @@ import uuid
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app import config
 from app.routers import google_ads, import_data
-from app.services.google_ads_client import GoogleAdsMetricRow
+from app.services.google_ads_provider_types import GoogleAdsMetricRow
 
 
 class ExistingMetric:
@@ -67,6 +66,8 @@ class FakeSession:
 
 
 class StubGoogleAdsClient:
+    provider_mode = "mock"
+
     def __init__(self, rows):
         self._rows = rows
 
@@ -125,6 +126,7 @@ def test_google_ads_sync_upserts_rows(monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["success"] is True
+    assert payload["provider_mode"] == "mock"
     assert payload["rows_imported"] == 2
     assert payload["channels"] == ["Google Display", "Google Search"]
     assert payload["date_range"] == {"start": "2025-01-01", "end": "2025-01-02"}
@@ -141,7 +143,6 @@ def test_google_ads_sync_upserts_rows(monkeypatch):
 
 def test_google_ads_sync_rejects_large_date_range(monkeypatch):
     monkeypatch.setenv("GOOGLE_ADS_MAX_SYNC_DAYS", "7")
-    config.get_settings.cache_clear()
 
     client = _build_client()
     response = client.post(
@@ -195,4 +196,25 @@ def test_google_ads_sync_auto_creates_unknown_valid_account(monkeypatch):
     payload = response.json()
     assert payload["success"] is True
     assert payload["rows_imported"] == 1
+    assert payload["provider_mode"] == "mock"
     assert any(isinstance(row, import_data.Account) for row in session.added_rows)
+
+
+def test_google_ads_sync_real_provider_requires_credentials(monkeypatch):
+    monkeypatch.setenv("GOOGLE_ADS_PROVIDER", "real")
+    session = FakeSession()
+    monkeypatch.setattr(google_ads, "get_session", lambda: session)
+    client = _build_client()
+
+    response = client.post(
+        "/api/import/google-ads/sync",
+        json={
+            "account_id": str(uuid.uuid4()),
+            "customer_id": "123-456-7890",
+            "date_from": "2025-01-01",
+            "date_to": "2025-01-01",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "GOOGLE_ADS_PROVIDER=real requires credentials" in response.json()["detail"]

@@ -1,9 +1,9 @@
 ---
 id: P007
 title: Ads integration and CI hardening
-state: TODO
-execution_status: Backlog
-owner:
+state: IN_PROGRESS
+execution_status: In Progress
+owner: codex
 branch: codex/p007-ads-integration-ci-hardening
 pr:
 depends_on:

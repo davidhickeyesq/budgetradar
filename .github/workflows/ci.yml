@@ -7,6 +7,35 @@ on:
       - main
 
 jobs:
+  frontend-checks:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        command:
+          - lint
+          - typecheck
+          - build
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend ${{ matrix.command }}
+        run: npm run ${{ matrix.command }}
+
   backend-tests:
     runs-on: ubuntu-latest
     steps:

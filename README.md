@@ -151,6 +151,7 @@ Response payload:
 ```json
 {
   "success": true,
+  "provider_mode": "mock",
   "rows_imported": 30,
   "channels": ["Google Display", "Google Search"],
   "date_range": {
@@ -160,7 +161,24 @@ Response payload:
 }
 ```
 
-This endpoint currently uses a deterministic local provider to validate ingestion/upsert flow. It is designed so a real Google Ads provider can replace it later without changing the API contract.
+`provider_mode` indicates which backend provider handled the sync:
+
+- `mock` (default): deterministic local provider for zero-credential local-first development.
+- `real`: live Google Ads API provider (requires credentials).
+
+### Google Ads Provider Mode
+
+Set `GOOGLE_ADS_PROVIDER=mock|real`.
+
+- `mock` keeps deterministic local sync behavior and requires no Ads credentials.
+- `real` enables live Google Ads fetching and requires:
+  - `GOOGLE_ADS_DEVELOPER_TOKEN`
+  - `GOOGLE_ADS_CLIENT_ID`
+  - `GOOGLE_ADS_CLIENT_SECRET`
+  - `GOOGLE_ADS_REFRESH_TOKEN`
+  - optional `GOOGLE_ADS_LOGIN_CUSTOMER_ID`
+
+When `GOOGLE_ADS_PROVIDER=real` and credentials are missing, sync returns `400` with actionable detail.
 
 ---
 
@@ -197,6 +215,12 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for deep dive.
 | `APP_API_KEY` | _(empty)_ | Expected `X-API-Key` value when guardrail is enabled |
 | `NEXT_PUBLIC_APP_API_KEY` | _(empty)_ | Frontend API key header for protected backend mode |
 | `GOOGLE_ADS_MAX_SYNC_DAYS` | `93` | Max date span accepted by Google Ads sync endpoint |
+| `GOOGLE_ADS_PROVIDER` | `mock` | Google Ads sync provider mode (`mock` or `real`) |
+| `GOOGLE_ADS_DEVELOPER_TOKEN` | _(empty)_ | Required in `real` provider mode |
+| `GOOGLE_ADS_CLIENT_ID` | _(empty)_ | Required in `real` provider mode |
+| `GOOGLE_ADS_CLIENT_SECRET` | _(empty)_ | Required in `real` provider mode |
+| `GOOGLE_ADS_REFRESH_TOKEN` | _(empty)_ | Required in `real` provider mode |
+| `GOOGLE_ADS_LOGIN_CUSTOMER_ID` | _(empty)_ | Optional manager account for `real` provider mode |
 
 ---
 
