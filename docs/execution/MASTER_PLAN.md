@@ -21,11 +21,18 @@ using:
 1. `P001` Account context + import UX consistency
 2. `P002` Alpha-aware marginal CPA + chart parity
 3. `P003` Ads-ops readiness foundation
+4. `P004` Account context completion
+5. `P005` Scenario recommendations
+6. `P006` Data quality and confidence guardrails
+7. `P007` Ads integration and CI hardening
 
 Dependency chain:
 
 - `P002` depends on `P001`
 - `P003` depends on `P002`
+- `P005` depends on `P004`
+- `P006` depends on `P005`
+- `P007` depends on `P006`
 
 ## Branch / PR Naming
 
@@ -82,7 +89,7 @@ The following controls are now committed in-repo:
 - `Type` (single select): `Epic`, `Packet`, `Chore`
 - `Execution Status` (single select): `Backlog`, `Ready`, `In Progress`,
   `Blocked`, `In Review`, `Done`
-- `Packet ID` (text): `P001`, `P002`, `P003`
+- `Packet ID` (text): `P001` through `P007`
 - `Spec Path` (text): absolute path to packet markdown
 - `Branch` (text)
 - `PR URL` (text)
@@ -106,6 +113,6 @@ web UI.
 ## Validation Checklist
 
 - Epic shows all packet sub-issues.
-- Project filter `Type=Packet` returns exactly three packet items.
+- Project filter `Type=Packet` returns exactly seven packet items.
 - Exactly one packet is `In Progress` at any time.
 - Packet issue, PR, and packet doc all cross-link to each other.

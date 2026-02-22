@@ -1,11 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useDefaultAccountContext } from '@/lib/account-context';
 import CsvUploader from '../../components/CsvUploader';
 
 export default function ImportPage() {
-    const [accountId] = useState('95bbc1c9-2535-49ea-9474-dbfa082feee4');
+    const { accountId, accountName, loading, error } = useDefaultAccountContext();
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+    if (loading) {
+        return (
+            <main className="space-y-6">
+                <div className="card-static p-6">
+                    <p className="text-sm text-slate-500">Loading account context…</p>
+                </div>
+            </main>
+        );
+    }
+
+    if (error || !accountId) {
+        return (
+            <main className="space-y-6">
+                <div className="card-static border-status-red p-6">
+                    <h3 className="font-semibold text-red-800">Error loading account context</h3>
+                    <p className="text-red-600 text-sm mt-1">{error ?? 'No account available'}</p>
+                </div>
+            </main>
+        );
+    }
 
     return (
         <main className="space-y-6">
@@ -47,7 +68,7 @@ export default function ImportPage() {
             </div>
 
             <p className="text-xs text-slate-400 mt-8">
-                Account ID: {accountId}
+                {accountName ?? 'Active Account'} · {accountId}
             </p>
         </main>
     );

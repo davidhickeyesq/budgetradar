@@ -156,3 +156,43 @@ def test_google_ads_sync_rejects_large_date_range(monkeypatch):
 
     assert response.status_code == 400
     assert "date range exceeds maximum of 7 days" in response.json()["detail"]
+
+
+def test_google_ads_sync_auto_creates_unknown_valid_account(monkeypatch):
+    session = FakeSession()
+    session.account_exists = False
+
+    provider_rows = [
+        GoogleAdsMetricRow(
+            date=date(2025, 1, 1),
+            channel_name="Google Search",
+            spend=150.0,
+            conversions=7.0,
+            impressions=7000,
+        )
+    ]
+
+    monkeypatch.setattr(google_ads, "get_session", lambda: session)
+    monkeypatch.setattr(
+        google_ads,
+        "get_google_ads_client",
+        lambda: StubGoogleAdsClient(provider_rows),
+    )
+    client = _build_client()
+    account_id = str(uuid.uuid4())
+
+    response = client.post(
+        "/api/import/google-ads/sync",
+        json={
+            "account_id": account_id,
+            "customer_id": "123-456-7890",
+            "date_from": "2025-01-01",
+            "date_to": "2025-01-01",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["rows_imported"] == 1
+    assert any(isinstance(row, import_data.Account) for row in session.added_rows)

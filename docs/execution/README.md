@@ -29,6 +29,10 @@ Project views programmatically. Configure/rename views in the GitHub web UI.
 - `packets/P001-account-context.md`
 - `packets/P002-alpha-parity.md`
 - `packets/P003-ads-ops-readiness.md`
+- `packets/P004-account-context-completion.md`
+- `packets/P005-scenario-recommendations.md`
+- `packets/P006-data-quality-confidence.md`
+- `packets/P007-ads-integration-ci-hardening.md`
 - `status.yaml`: machine-readable packet status index.
 - `decisions.md`: locked decisions and rationale.
 

@@ -59,3 +59,8 @@ class ChannelAnalysisRequest(BaseModel):
 
 class ChannelAnalysisResponse(BaseModel):
     channels: list[MarginalCpaResult]
+
+
+class DefaultAccountResponse(BaseModel):
+    account_id: str
+    name: str

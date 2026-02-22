@@ -5,6 +5,7 @@ from app.models.schemas import (
     FitModelResponse,
     ChannelAnalysisRequest,
     ChannelAnalysisResponse,
+    DefaultAccountResponse,
     MarginalCpaResult,
     HillParameters,
 )
@@ -19,10 +20,17 @@ from app.services.database import (
     fetch_daily_metrics,
     fetch_channels_for_account,
     get_current_spend,
+    get_or_create_default_account,
     save_model_params,
 )
 
 router = APIRouter(prefix="/api", tags=["analysis"])
+
+
+@router.get("/accounts/default", response_model=DefaultAccountResponse)
+async def get_default_account():
+    account_id, name = get_or_create_default_account()
+    return DefaultAccountResponse(account_id=account_id, name=name)
 
 
 @router.post("/fit-model", response_model=FitModelResponse)

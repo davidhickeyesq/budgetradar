@@ -294,7 +294,6 @@ export function CostCurveChart({
                         fill="#1e293b"
                         stroke="#ffffff"
                         strokeWidth={3}
-                        isFront={true}
                     />
                 </AreaChart>
             </ResponsiveContainer>

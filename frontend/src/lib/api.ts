@@ -35,6 +35,11 @@ export interface ChannelAnalysisResponse {
   channels: MarginalCpaResult[]
 }
 
+export interface DefaultAccountResponse {
+  account_id: string
+  name: string
+}
+
 export async function analyzeChannels(
   accountId: string,
   targetCpa: number = 50
@@ -52,6 +57,16 @@ export async function analyzeChannels(
 
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export async function getDefaultAccount(): Promise<DefaultAccountResponse> {
+  const response = await fetch(`${API_URL}/api/accounts/default`)
+
+  if (!response.ok) {
+    throw new Error(`Default account API error: ${response.status}`)
   }
 
   return response.json()

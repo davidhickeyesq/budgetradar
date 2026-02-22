@@ -62,7 +62,7 @@ async def sync_google_ads(request: GoogleAdsSyncRequest):
     session = get_session()
     try:
         account_uuid = parse_account_id(request.account_id)
-        ensure_account_exists(session, account_uuid)
+        ensure_account_exists(session, account_uuid, create_if_missing=True)
 
         google_ads_client = get_google_ads_client()
         provider_rows = google_ads_client.fetch_daily_metrics(

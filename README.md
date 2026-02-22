@@ -51,6 +51,15 @@ The database is **auto-seeded** with demo data on first run. You should see Goog
    - 🔴 **Red:** Marginal CPA > Target (Diminishing returns - Pull back)
    - ⚪ **Grey:** Insufficient data (< 21 days)
 
+## 👤 Default Account Context
+
+The frontend now resolves account context from:
+
+- `GET /api/accounts/default` → `{ "account_id": "<uuid>", "name": "<string>" }`
+
+In local-first mode, import/sync requests with a valid but unknown `account_id`
+auto-create that account before ingesting data.
+
 ---
 
 ## 📦 Common Commands
