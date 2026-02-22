@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
-from app.routers import analysis, import_data, google_ads
+from app.routers import analysis, import_data, google_ads, scenarios
 from app.services.database import init_db
 
 app = FastAPI(
@@ -54,6 +54,7 @@ app.add_middleware(
 app.include_router(analysis.router)
 app.include_router(import_data.router)
 app.include_router(google_ads.router)
+app.include_router(scenarios.router)
 
 
 @app.get("/")

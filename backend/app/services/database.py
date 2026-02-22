@@ -7,7 +7,7 @@ import uuid
 
 from app.config import get_settings
 from app.models.schemas import HillParameters
-from app.models.db_models import Base, Account, DailyMetric, MMMModel
+from app.models.db_models import Base, Account, DailyMetric, MMMModel, Scenario
 
 
 DEFAULT_ACCOUNT_ID = uuid.UUID("a8465a7b-bf39-4352-9658-4f1b8d05b381")
@@ -225,5 +225,40 @@ def get_or_create_default_account() -> tuple[str, str]:
             session.commit()
 
         return str(account.id), account.name
+    finally:
+        session.close()
+
+
+def save_scenario(
+    account_id: str,
+    name: str,
+    budget_allocation: dict,
+) -> Scenario:
+    """Persist a scenario payload for an account."""
+    session = get_session()
+    try:
+        scenario = Scenario(
+            account_id=account_id,
+            name=name,
+            budget_allocation=budget_allocation,
+        )
+        session.add(scenario)
+        session.commit()
+        session.refresh(scenario)
+        return scenario
+    finally:
+        session.close()
+
+
+def list_scenarios(account_id: str) -> list[Scenario]:
+    """Fetch scenarios for an account ordered by most recent first."""
+    session = get_session()
+    try:
+        stmt = (
+            select(Scenario)
+            .where(Scenario.account_id == account_id)
+            .order_by(desc(Scenario.created_at))
+        )
+        return list(session.execute(stmt).scalars().all())
     finally:
         session.close()

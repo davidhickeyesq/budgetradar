@@ -40,6 +40,60 @@ export interface DefaultAccountResponse {
   name: string
 }
 
+export type ScenarioAction = 'increase' | 'decrease' | 'maintain' | 'locked' | 'insufficient_data'
+
+export interface ScenarioRecommendationRequest {
+  account_id: string
+  target_cpa: number
+  budget_delta_percent?: number
+  locked_channels?: string[]
+}
+
+export interface ScenarioChannelRecommendationPayload {
+  channel_name: string
+  action: ScenarioAction
+  rationale: string
+  current_spend: number
+  recommended_spend: number
+  spend_delta: number
+  spend_delta_percent: number
+  current_marginal_cpa: number | null
+  projected_marginal_cpa: number | null
+  traffic_light: 'green' | 'yellow' | 'red' | 'grey'
+  locked: boolean
+}
+
+export interface ScenarioProjectedSummaryPayload {
+  current_total_spend: number
+  projected_total_spend: number
+  total_spend_delta: number
+  total_spend_delta_percent: number
+  channels_increase: number
+  channels_decrease: number
+  channels_maintain: number
+  channels_locked: number
+  channels_insufficient_data: number
+}
+
+export interface ScenarioRecommendationResponse {
+  scenario_name: string
+  recommendations: ScenarioChannelRecommendationPayload[]
+  projected_summary: ScenarioProjectedSummaryPayload
+}
+
+export interface ScenarioRecordPayload {
+  id: string
+  account_id: string
+  name: string
+  budget_allocation: Record<string, unknown>
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ScenarioListResponse {
+  scenarios: ScenarioRecordPayload[]
+}
+
 export async function analyzeChannels(
   accountId: string,
   targetCpa: number = 50
@@ -67,6 +121,58 @@ export async function getDefaultAccount(): Promise<DefaultAccountResponse> {
 
   if (!response.ok) {
     throw new Error(`Default account API error: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export async function recommendScenario(
+  request: ScenarioRecommendationRequest
+): Promise<ScenarioRecommendationResponse> {
+  const response = await fetch(`${API_URL}/api/scenarios/recommend`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Scenario recommendation API error: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export async function saveScenario(
+  accountId: string,
+  name: string,
+  budgetAllocation: Record<string, unknown>
+): Promise<ScenarioRecordPayload> {
+  const response = await fetch(`${API_URL}/api/scenarios`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      account_id: accountId,
+      name,
+      budget_allocation: budgetAllocation,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Scenario save API error: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export async function listScenarios(accountId: string): Promise<ScenarioListResponse> {
+  const response = await fetch(`${API_URL}/api/scenarios/${accountId}`)
+
+  if (!response.ok) {
+    throw new Error(`Scenario list API error: ${response.status}`)
   }
 
   return response.json()

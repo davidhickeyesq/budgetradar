@@ -1,13 +1,13 @@
 ---
 id: P001
 title: Account context + import UX
-state: REVIEW
-execution_status: Ready
+state: DONE
+execution_status: Done
 owner: Antigravity
 branch: codex/p001-account-context
 pr:
 depends_on: []
-updated_at: 2026-02-17
+updated_at: 2026-02-22
 issue: https://github.com/davidhickeyesq/budgetradar/issues/17
 project_item: PVTI_lAHOACofT84BPcnczgloLM4
 epic_issue: https://github.com/davidhickeyesq/budgetradar/issues/14

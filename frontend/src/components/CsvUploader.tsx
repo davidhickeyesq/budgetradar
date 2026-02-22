@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, DragEvent } from 'react';
+import Link from 'next/link';
 
 interface CsvUploaderProps {
   accountId: string;
@@ -161,12 +162,12 @@ export default function CsvUploader({ accountId }: CsvUploaderProps) {
               <li>Date range: <span className="font-medium">{result.date_range.start} → {result.date_range.end}</span></li>
             </ul>
             <div className="mt-4">
-              <a
+              <Link
                 href="/"
                 className="inline-flex items-center gap-1.5 font-medium text-indigo-600 hover:text-indigo-800 transition-colors text-sm"
               >
                 → View Dashboard
-              </a>
+              </Link>
             </div>
           </div>
         )}

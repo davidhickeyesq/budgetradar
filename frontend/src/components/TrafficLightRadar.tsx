@@ -1,12 +1,13 @@
 'use client'
 
-import type { ChannelMetrics, TrafficLight } from '@/types'
+import type { ChannelMetrics, ScenarioRecommendation, TrafficLight } from '@/types'
 import { getRecommendation } from '@/types'
 import { CostCurveChart } from '@/components/CostCurveChart'
 
 interface TrafficLightRadarProps {
   channels: ChannelMetrics[]
   targetCpa: number
+  scenarioRecommendations?: Record<string, ScenarioRecommendation>
 }
 
 const borderClasses: Record<TrafficLight, string> = {
@@ -37,7 +38,11 @@ const trafficLightLabels: Record<TrafficLight, string> = {
   grey: 'No Data',
 }
 
-export function TrafficLightRadar({ channels, targetCpa }: TrafficLightRadarProps) {
+export function TrafficLightRadar({
+  channels,
+  targetCpa,
+  scenarioRecommendations = {},
+}: TrafficLightRadarProps) {
   return (
     <div className="animate-fade-in">
       <div className="card-static p-6">
@@ -51,7 +56,13 @@ export function TrafficLightRadar({ channels, targetCpa }: TrafficLightRadarProp
 
         <div className="space-y-4">
           {channels.map((channel, i) => (
-            <ChannelRow key={channel.channelName} channel={channel} targetCpa={targetCpa} index={i} />
+            <ChannelRow
+              key={channel.channelName}
+              channel={channel}
+              targetCpa={targetCpa}
+              index={i}
+              scenarioRecommendation={scenarioRecommendations[channel.channelName]}
+            />
           ))}
         </div>
       </div>
@@ -63,9 +74,10 @@ interface ChannelRowProps {
   channel: ChannelMetrics
   targetCpa: number
   index: number
+  scenarioRecommendation?: ScenarioRecommendation
 }
 
-function ChannelRow({ channel, targetCpa, index }: ChannelRowProps) {
+function ChannelRow({ channel, targetCpa, index, scenarioRecommendation }: ChannelRowProps) {
   const {
     channelName,
     marginalCpa,
@@ -148,6 +160,16 @@ function ChannelRow({ channel, targetCpa, index }: ChannelRowProps) {
         </div>
       )}
 
+      {scenarioRecommendation && (
+        <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Scenario Move</p>
+          <p className="text-sm text-slate-700 mt-1">
+            {formatScenarioMove(scenarioRecommendation)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">{scenarioRecommendation.rationale}</p>
+        </div>
+      )}
+
       {/* Recommendation + model confidence */}
       <div className="flex items-center justify-between mt-3">
         <p className="text-sm text-slate-500">
@@ -161,4 +183,21 @@ function ChannelRow({ channel, targetCpa, index }: ChannelRowProps) {
       </div>
     </div>
   )
+}
+
+function formatScenarioMove(recommendation: ScenarioRecommendation): string {
+  const absDelta = Math.abs(recommendation.spendDelta)
+  if (recommendation.action === 'increase') {
+    return `Increase by $${absDelta.toLocaleString(undefined, { maximumFractionDigits: 2 })}/day (${recommendation.spendDeltaPercent.toFixed(1)}%)`
+  }
+  if (recommendation.action === 'decrease') {
+    return `Decrease by $${absDelta.toLocaleString(undefined, { maximumFractionDigits: 2 })}/day (${recommendation.spendDeltaPercent.toFixed(1)}%)`
+  }
+  if (recommendation.action === 'locked') {
+    return 'Locked channel; no spend change'
+  }
+  if (recommendation.action === 'insufficient_data') {
+    return 'Insufficient data; hold spend until more history is available'
+  }
+  return 'Maintain current spend'
 }
