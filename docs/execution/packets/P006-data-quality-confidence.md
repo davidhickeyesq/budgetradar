@@ -1,11 +1,11 @@
 ---
 id: P006
 title: Input, docs, and runtime hardening bundle
-state: IN_PROGRESS
-execution_status: In Progress
+state: REVIEW
+execution_status: In Review
 owner: codex
 branch: codex/p006-hardening-bundle
-pr:
+pr: https://github.com/davidhickeyesq/budgetradar/pull/29
 depends_on:
   - P005
 updated_at: 2026-02-22
