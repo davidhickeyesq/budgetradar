@@ -1,11 +1,11 @@
 ---
 id: P004
 title: Account context completion
-state: IN_PROGRESS
-execution_status: In Progress
+state: REVIEW
+execution_status: In Review
 owner: codex
 branch: codex/p004-account-context-completion
-pr:
+pr: https://github.com/davidhickeyesq/budgetradar/pull/27
 depends_on: []
 updated_at: 2026-02-22
 issue: https://github.com/davidhickeyesq/budgetradar/issues/23
