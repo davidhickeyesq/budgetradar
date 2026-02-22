@@ -1,10 +1,10 @@
 ---
 id: P006
-title: Data quality and confidence guardrails
-state: TODO
-execution_status: Backlog
-owner:
-branch: codex/p006-data-quality-confidence
+title: Input, docs, and runtime hardening bundle
+state: IN_PROGRESS
+execution_status: In Progress
+owner: codex
+branch: codex/p006-hardening-bundle
 pr:
 depends_on:
   - P005
@@ -15,91 +15,91 @@ epic_issue: https://github.com/davidhickeyesq/budgetradar/issues/14
 spec_path: /Users/davidhickey/Documents/Projects/budgetradar/docs/execution/packets/P006-data-quality-confidence.md
 ---
 
-# P006: Data Quality and Confidence Guardrails
+# P006: Input, Docs, and Runtime Hardening Bundle
 
 ## Goal
 
-Increase trust in outputs by preventing silent bad-input coercion and exposing
-fit/data-quality confidence diagnostics in API + UI.
+Bundle three release-readiness fixes into one execution packet:
+
+1. strict CSV validation and tests for malformed/negative values
+2. documentation alignment to current truth
+3. frontend runtime hardening for API-key mode and local font build reliability
 
 ## In Scope
 
-- Tighten CSV validation for required fields and row-level parse failures.
-- Return structured import validation feedback instead of silent zero-filling.
-- Add channel analysis diagnostics for data sufficiency and model confidence.
-- Surface confidence warnings in dashboard UI.
-- Reconcile documentation/math references to a single 10% marginal increment rule.
+- Add failing tests first for CSV invalid numeric, negative numeric, and invalid date input.
+- Update CSV import to reject invalid required fields with 400 responses and actionable error detail.
+- Ensure malformed dates return 4xx import errors (not 500).
+- Align docs with implemented behavior:
+  - 10% marginal increment rule
+  - local-first current deployment posture
+  - actual frontend UI stack usage
+- Add optional frontend `X-API-Key` header support for protected `/api/*` mode.
+- Replace remote Google font dependency with local font strategy to keep frontend builds reliable in restricted/offline environments.
 
 ## Out of Scope
 
-- Third-party data observability platform integration.
-- Statistical model-family replacement beyond Hill + adstock.
-- Account-level anomaly detection automation.
+- New model-confidence scoring framework and UI diagnostics.
+- Real Google Ads provider implementation.
+- Supabase cloud runtime implementation.
 
 ## Files Expected to Change
 
 - /Users/davidhickey/Documents/Projects/budgetradar/backend/app/routers/import_data.py
-- /Users/davidhickey/Documents/Projects/budgetradar/backend/app/routers/analysis.py
-- /Users/davidhickey/Documents/Projects/budgetradar/backend/app/models/schemas.py
-- /Users/davidhickey/Documents/Projects/budgetradar/backend/app/services/hill_function.py
 - /Users/davidhickey/Documents/Projects/budgetradar/backend/tests/*
-- /Users/davidhickey/Documents/Projects/budgetradar/frontend/src/app/import/page.tsx
-- /Users/davidhickey/Documents/Projects/budgetradar/frontend/src/components/CsvUploader.tsx
-- /Users/davidhickey/Documents/Projects/budgetradar/frontend/src/components/TrafficLightRadar.tsx
+- /Users/davidhickey/Documents/Projects/budgetradar/backend/app/main.py (if import error handling/middleware touch required)
 - /Users/davidhickey/Documents/Projects/budgetradar/frontend/src/lib/api.ts
-- /Users/davidhickey/Documents/Projects/budgetradar/frontend/src/types/index.ts
+- /Users/davidhickey/Documents/Projects/budgetradar/frontend/src/components/CsvUploader.tsx (if surfacing import validation feedback)
+- /Users/davidhickey/Documents/Projects/budgetradar/frontend/src/app/layout.tsx
+- /Users/davidhickey/Documents/Projects/budgetradar/frontend/src/app/globals.css
 - /Users/davidhickey/Documents/Projects/budgetradar/README.md
+- /Users/davidhickey/Documents/Projects/budgetradar/AGENTS.md
 - /Users/davidhickey/Documents/Projects/budgetradar/docs/project-context.md
 - /Users/davidhickey/Documents/Projects/budgetradar/docs/CSV_FORMAT.md
+- /Users/davidhickey/Documents/Projects/budgetradar/frontend/README.md
 
 ## Public API / Interface Changes
 
-- Import response shape extended with validation metadata:
-  - `warnings[]`
-  - `rejected_rows[]` with row number and reason
-- Analysis channel payload extended with diagnostics:
-  - `data_days`
-  - `non_zero_days`
-  - `confidence_level` (`high|medium|low`)
-  - `confidence_warnings[]`
+- `POST /api/import/csv`
+  - invalid date/numeric/negative required values return 400 with actionable detail
+  - no silent coercion of invalid required fields to zero
+- Frontend API client optionally sends `X-API-Key` header when configured
 
 ## Implementation Plan
 
-1. Define import/analysis diagnostic schema additions.
-2. Replace silent coercion with explicit row validation and rejection reporting.
-3. Add analysis confidence computation from data sufficiency + fit quality.
-4. Render warnings/diagnostics in import and dashboard views.
-5. Update docs to remove 1% increment references and align with AGENTS.md.
+1. Add/adjust backend tests that fail on current permissive CSV behavior.
+2. Implement strict CSV validation and 400 response mapping in import route.
+3. Update docs to match implementation truth for math rule + deployment/runtime posture.
+4. Add API key header propagation in frontend fetch layer.
+5. Swap remote font dependency for local font setup and confirm frontend build stability.
 
 ## Edge Cases / Failure Modes
 
 - CSV with mixed valid and invalid rows.
-- Extremely sparse channels that cannot produce stable fit metrics.
-- Legacy clients expecting old import response shape.
-- Large rejection lists impacting response payload size.
+- Import payloads with currency symbols, blanks, or malformed dates.
+- Protected API mode enabled without frontend API key configured.
+- Font fallback regressions after local font migration.
 
 ## Tests
 
 - Backend:
-  - invalid numeric/date rows are rejected with explicit reasons.
-  - analysis returns confidence metadata for success and grey cases.
-  - docs/contracts remain backward compatible where required.
+  - invalid numeric/date required values return 400.
+  - negative `spend`/`conversions` return 400.
+  - malformed date returns 400 (not 500).
 - Frontend:
-  - import UI renders rejected-row/warning feedback.
-  - channel cards show confidence warnings without breaking layout.
-- Manual:
-  - upload intentionally malformed CSV and verify actionable feedback.
+  - API client includes `X-API-Key` when configured.
+  - production build passes after local font migration.
 
 ## Acceptance Criteria
 
-- [ ] CSV import no longer silently converts invalid required metrics to zero.
-- [ ] API returns row-level validation feedback for bad imports.
-- [ ] Analysis output includes confidence diagnostics per channel.
-- [ ] UI clearly communicates low-confidence recommendations.
-- [ ] Documentation consistently states 10% marginal increment.
+- [ ] CSV import no longer silently converts invalid required fields to zero.
+- [ ] Invalid date/numeric/negative required values return 400 with actionable detail.
+- [ ] Documentation reflects implemented 10% increment and current deployment/runtime truth.
+- [ ] Frontend works with optional API-key protected backend mode.
+- [ ] Frontend build no longer depends on remote Google font fetch.
 
 ## Rollback Plan
 
-- Revert to previous permissive CSV parsing behavior.
-- Remove confidence fields from API/UI while keeping core analysis response.
-- Restore prior docs wording if client contract risks emerge.
+- Revert strict import validation to previous behavior if ingestion compatibility blocks release.
+- Disable frontend API-key header injection behind config flag.
+- Restore prior font setup if unexpected visual regressions occur.

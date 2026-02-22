@@ -113,3 +113,72 @@ def test_import_auto_creates_unknown_valid_account(monkeypatch):
     assert len(fake_session.added_rows) == 2
     assert any(isinstance(row, import_data.Account) for row in fake_session.added_rows)
     assert any(isinstance(row, import_data.DailyMetric) for row in fake_session.added_rows)
+
+
+def test_import_rejects_invalid_required_numeric_values(monkeypatch):
+    fake_session = FakeSession()
+    monkeypatch.setattr(import_data, "get_session", lambda: fake_session)
+    client = _build_client()
+
+    csv_content = (
+        "date,channel_name,spend,conversions\n"
+        "2025-01-01,Google Ads,$100,abc\n"
+    )
+
+    response = client.post(
+        "/api/import/csv",
+        files={"file": ("metrics.csv", csv_content, "text/csv")},
+        data={"account_id": str(uuid.uuid4())},
+    )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["message"] == "CSV validation failed"
+    assert any("row 2" in err for err in detail["errors"])
+    assert any("spend must be a valid number" in err for err in detail["errors"])
+    assert any("conversions must be a valid number" in err for err in detail["errors"])
+
+
+def test_import_rejects_negative_required_values(monkeypatch):
+    fake_session = FakeSession()
+    monkeypatch.setattr(import_data, "get_session", lambda: fake_session)
+    client = _build_client()
+
+    csv_content = (
+        "date,channel_name,spend,conversions\n"
+        "2025-01-01,Google Ads,-10,-5\n"
+    )
+
+    response = client.post(
+        "/api/import/csv",
+        files={"file": ("metrics.csv", csv_content, "text/csv")},
+        data={"account_id": str(uuid.uuid4())},
+    )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["message"] == "CSV validation failed"
+    assert any("spend must be non-negative" in err for err in detail["errors"])
+    assert any("conversions must be non-negative" in err for err in detail["errors"])
+
+
+def test_import_rejects_malformed_dates_with_400(monkeypatch):
+    fake_session = FakeSession()
+    monkeypatch.setattr(import_data, "get_session", lambda: fake_session)
+    client = _build_client()
+
+    csv_content = (
+        "date,channel_name,spend,conversions\n"
+        "not-a-date,Google Ads,100,5\n"
+    )
+
+    response = client.post(
+        "/api/import/csv",
+        files={"file": ("metrics.csv", csv_content, "text/csv")},
+        data={"account_id": str(uuid.uuid4())},
+    )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["message"] == "CSV validation failed"
+    assert any("date must be in YYYY-MM-DD format" in err for err in detail["errors"])

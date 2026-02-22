@@ -60,10 +60,13 @@ export default function CsvUploader({ accountId }: CsvUploaderProps) {
     formData.append('account_id', accountId);
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiKey = process.env.NEXT_PUBLIC_APP_API_KEY;
+    const headers = apiKey ? { 'X-API-Key': apiKey } : undefined;
 
     try {
       const response = await fetch(`${apiUrl}/api/import/csv`, {
         method: 'POST',
+        headers,
         body: formData,
       });
 

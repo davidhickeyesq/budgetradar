@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
+import math
 from typing import Any, Dict, Iterable, Optional
 import io
 import uuid
@@ -101,6 +102,99 @@ def upsert_daily_metrics_rows(
     return rows_processed, channels, date_range
 
 
+def parse_iso_date(value: Any) -> Optional[date]:
+    if pd.isna(value):
+        return None
+
+    try:
+        return datetime.strptime(str(value).strip(), "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_number(value: Any) -> Optional[float]:
+    numeric = pd.to_numeric(value, errors="coerce")
+    if pd.isna(numeric):
+        return None
+
+    parsed = float(numeric)
+    if not math.isfinite(parsed):
+        return None
+
+    return parsed
+
+
+def parse_optional_impressions(value: Any) -> tuple[Optional[int], Optional[str]]:
+    if pd.isna(value):
+        return None, None
+
+    if isinstance(value, str) and value.strip() == "":
+        return None, None
+
+    parsed = parse_number(value)
+    if parsed is None:
+        return None, "impressions must be a valid integer"
+    if parsed < 0:
+        return None, "impressions must be non-negative"
+    if not float(parsed).is_integer():
+        return None, "impressions must be an integer"
+
+    return int(parsed), None
+
+
+def validate_csv_rows(df: pd.DataFrame) -> tuple[list[DailyMetricUpsertRow], list[str]]:
+    rows: list[DailyMetricUpsertRow] = []
+    validation_errors: list[str] = []
+    has_impressions = "impressions" in df.columns
+
+    for idx, raw_row in df.iterrows():
+        row_number = idx + 2  # +1 for zero-based index, +1 for header row
+        row_errors: list[str] = []
+
+        parsed_date = parse_iso_date(raw_row["date"])
+        if parsed_date is None:
+            row_errors.append("date must be in YYYY-MM-DD format")
+
+        channel_name_raw = raw_row["channel_name"]
+        channel_name = "" if pd.isna(channel_name_raw) else str(channel_name_raw).strip()
+        if channel_name == "":
+            row_errors.append("channel_name is required")
+
+        spend = parse_number(raw_row["spend"])
+        if spend is None:
+            row_errors.append("spend must be a valid number")
+        elif spend < 0:
+            row_errors.append("spend must be non-negative")
+
+        conversions = parse_number(raw_row["conversions"])
+        if conversions is None:
+            row_errors.append("conversions must be a valid number")
+        elif conversions < 0:
+            row_errors.append("conversions must be non-negative")
+
+        impressions: Optional[int] = None
+        if has_impressions:
+            impressions, impressions_error = parse_optional_impressions(raw_row["impressions"])
+            if impressions_error:
+                row_errors.append(impressions_error)
+
+        if row_errors:
+            validation_errors.append(f"row {row_number}: {'; '.join(row_errors)}")
+            continue
+
+        rows.append(
+            DailyMetricUpsertRow(
+                date=parsed_date,
+                channel_name=channel_name,
+                spend=spend,
+                conversions=conversions,
+                impressions=impressions,
+            )
+        )
+
+    return rows, validation_errors
+
+
 @router.post("/csv")
 async def import_csv(
     file: UploadFile = File(...),
@@ -126,32 +220,23 @@ async def import_csv(
                 detail=f"Missing required columns: {', '.join(missing)}",
             )
 
+        if df.empty:
+            raise HTTPException(status_code=400, detail="CSV must include at least one data row")
+
+        rows, validation_errors = validate_csv_rows(df)
+        if validation_errors:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "CSV validation failed",
+                    "errors": validation_errors,
+                },
+            )
+
+        acc_uuid = parse_account_id(account_id)
         session = get_session()
         try:
-            acc_uuid = parse_account_id(account_id)
             ensure_account_exists(session, acc_uuid, create_if_missing=True)
-
-            df["date"] = pd.to_datetime(df["date"]).dt.date
-            df["spend"] = pd.to_numeric(df["spend"], errors="coerce").fillna(0)
-            df["conversions"] = pd.to_numeric(df["conversions"], errors="coerce").fillna(0)
-
-            if "impressions" in df.columns:
-                df["impressions"] = (
-                    pd.to_numeric(df["impressions"], errors="coerce").fillna(0).astype(int)
-                )
-            else:
-                df["impressions"] = None
-
-            rows = [
-                DailyMetricUpsertRow(
-                    date=row.date,
-                    channel_name=row.channel_name,
-                    spend=float(row.spend),
-                    conversions=float(row.conversions),
-                    impressions=None if pd.isna(row.impressions) else int(row.impressions),
-                )
-                for row in df.itertuples(index=False)
-            ]
 
             rows_processed, channels, date_range = upsert_daily_metrics_rows(
                 session=session,
