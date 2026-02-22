@@ -42,6 +42,40 @@ export interface MarginalCpaResult {
   recommendation: string
 }
 
+export type ScenarioAction = 'increase' | 'decrease' | 'maintain' | 'locked' | 'insufficient_data'
+
+export interface ScenarioRecommendation {
+  channelName: string
+  action: ScenarioAction
+  rationale: string
+  currentSpend: number
+  recommendedSpend: number
+  spendDelta: number
+  spendDeltaPercent: number
+  currentMarginalCpa: number | null
+  projectedMarginalCpa: number | null
+  trafficLight: TrafficLight
+  locked: boolean
+}
+
+export interface ScenarioProjectedSummary {
+  currentTotalSpend: number
+  projectedTotalSpend: number
+  totalSpendDelta: number
+  totalSpendDeltaPercent: number
+  channelsIncrease: number
+  channelsDecrease: number
+  channelsMaintain: number
+  channelsLocked: number
+  channelsInsufficientData: number
+}
+
+export interface ScenarioPlan {
+  scenarioName: string
+  recommendations: ScenarioRecommendation[]
+  projectedSummary: ScenarioProjectedSummary
+}
+
 export function getTrafficLight(marginalCpa: number | null, targetCpa: number): TrafficLight {
   if (marginalCpa === null) return 'grey'
 

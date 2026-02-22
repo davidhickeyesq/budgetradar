@@ -1,9 +1,9 @@
 ---
 id: P005
 title: Scenario recommendations
-state: TODO
-execution_status: Backlog
-owner:
+state: IN_PROGRESS
+execution_status: In Progress
+owner: codex
 branch: codex/p005-scenario-recommendations
 pr:
 depends_on:

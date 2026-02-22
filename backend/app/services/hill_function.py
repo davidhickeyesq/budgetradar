@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import curve_fit
-from typing import Optional
+from typing import Literal, Optional
 from dataclasses import dataclass
 
 from app.config import get_settings
@@ -134,7 +134,7 @@ def fit_hill_model(
     return best_result
 
 
-def _get_prior_adstock_state(
+def get_prior_adstock_state(
     current_spend: float,
     alpha: float,
     spend_history: Optional[np.ndarray] = None,
@@ -179,7 +179,7 @@ def calculate_marginal_cpa(
     prior_state = (
         float(prior_adstock_state)
         if prior_adstock_state is not None
-        else _get_prior_adstock_state(current_spend, params.alpha, spend_history)
+        else get_prior_adstock_state(current_spend, params.alpha, spend_history)
     )
 
     spend_next = current_spend * (1 + increment)
@@ -224,7 +224,7 @@ def generate_marginal_curve_points(
     if params.status != "success" or current_spend <= 0:
         return [], None
 
-    prior_state = _get_prior_adstock_state(current_spend, params.alpha, spend_history)
+    prior_state = get_prior_adstock_state(current_spend, params.alpha, spend_history)
 
     min_spend = max(current_spend * 0.05, 10.0)
     max_spend = max(current_spend * 4.0, min_spend * 1.1)
@@ -303,3 +303,100 @@ def get_recommendation(traffic_light: str) -> str:
         "grey": "Insufficient data (need 21+ days)"
     }
     return recommendations.get(traffic_light, "Unknown status")
+
+
+def apply_spend_step(
+    spend: float,
+    direction: Literal["increase", "decrease"],
+    increment: float = 0.10,
+) -> float:
+    """Apply a single bounded spend step used in scenario simulation."""
+    if direction == "increase":
+        return max(0.0, spend * (1 + increment))
+    return max(0.0, spend * (1 - increment))
+
+
+def get_scenario_action(traffic_light: str, locked: bool = False) -> str:
+    """Map traffic-light status into scenario planning action labels."""
+    if locked:
+        return "locked"
+
+    if traffic_light == "green":
+        return "increase"
+    if traffic_light == "red":
+        return "decrease"
+    if traffic_light == "yellow":
+        return "maintain"
+    return "insufficient_data"
+
+
+def get_scenario_rationale(
+    traffic_light: str,
+    target_cpa: float,
+    marginal_cpa: Optional[float],
+    action: str,
+    locked: bool = False,
+) -> str:
+    """Explain recommendations using the 90%-110% target CPA guardrails."""
+    lower_bound = 0.9 * target_cpa
+    upper_bound = 1.1 * target_cpa
+
+    if locked:
+        return "Channel is locked, so spend is held constant."
+
+    if marginal_cpa is None or traffic_light == "grey":
+        return "Insufficient data (< 21 days) to estimate reliable marginal CPA."
+
+    if traffic_light == "green":
+        if action == "decrease":
+            return (
+                f"Marginal CPA ${marginal_cpa:.2f} is below 90% threshold "
+                f"(${lower_bound:.2f}), but spend was reduced to satisfy overall budget constraints."
+            )
+        if action == "maintain":
+            return (
+                f"Marginal CPA ${marginal_cpa:.2f} is below 90% threshold "
+                f"(${lower_bound:.2f}), but spend is held flat due scenario constraints."
+            )
+        return (
+            f"Marginal CPA ${marginal_cpa:.2f} is below 90% threshold "
+            f"(${lower_bound:.2f}); scale budget in 10% steps."
+        )
+
+    if traffic_light == "yellow":
+        if action == "increase":
+            return (
+                f"Marginal CPA ${marginal_cpa:.2f} is within the 90%-110% band "
+                f"(${lower_bound:.2f}-${upper_bound:.2f}); spend was increased to meet the target budget."
+            )
+        if action == "decrease":
+            return (
+                f"Marginal CPA ${marginal_cpa:.2f} is within the 90%-110% band "
+                f"(${lower_bound:.2f}-${upper_bound:.2f}); spend was reduced to meet the target budget."
+            )
+        return (
+            f"Marginal CPA ${marginal_cpa:.2f} is within the 90%-110% band "
+            f"(${lower_bound:.2f}-${upper_bound:.2f}); maintain current spend."
+        )
+
+    if traffic_light == "red":
+        if action == "increase":
+            return (
+                f"Marginal CPA ${marginal_cpa:.2f} exceeds 110% threshold "
+                f"(${upper_bound:.2f}), but spend was increased to satisfy overall budget constraints."
+            )
+        if action == "maintain":
+            return (
+                f"Marginal CPA ${marginal_cpa:.2f} exceeds 110% threshold "
+                f"(${upper_bound:.2f}), but spend is held flat due scenario constraints."
+            )
+        return (
+            f"Marginal CPA ${marginal_cpa:.2f} exceeds 110% threshold "
+            f"(${upper_bound:.2f}); reduce spend in 10% steps."
+        )
+
+    if action == "increase":
+        return "Budget increase distributed to this channel in 10% steps."
+    if action == "decrease":
+        return "Budget reduction distributed from this channel in 10% steps."
+    return "No spend change recommended."

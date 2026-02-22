@@ -62,6 +62,44 @@ auto-create that account before ingesting data.
 
 ---
 
+## 📈 Scenario Planner (P005)
+
+The dashboard now includes a Scenario Planner card that can:
+
+- generate channel-level budget moves from traffic-light output
+- lock channels before simulation
+- persist and reload saved scenarios
+
+Recommendation simulation uses fixed **10% spend steps** per channel to stay
+consistent with marginal CPA stability rules.
+
+### Scenario APIs
+
+- `POST /api/scenarios/recommend`
+  - Request:
+    ```json
+    {
+      "account_id": "a8465a7b-bf39-4352-9658-4f1b8d05b381",
+      "target_cpa": 50,
+      "budget_delta_percent": 0,
+      "locked_channels": ["Google Ads"]
+    }
+    ```
+  - Response:
+    ```json
+    {
+      "scenario_name": "Auto Scenario (+0.0% budget) - 2026-02-22 18:30 UTC",
+      "recommendations": [],
+      "projected_summary": {}
+    }
+    ```
+- `POST /api/scenarios`
+  - Persists a scenario payload in the `scenarios` table.
+- `GET /api/scenarios/{account_id}`
+  - Returns saved scenarios for the account (most recent first).
+
+---
+
 ## 📦 Common Commands
 
 We use `make` to simplify common development tasks:
