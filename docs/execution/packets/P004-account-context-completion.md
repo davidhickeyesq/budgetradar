@@ -1,9 +1,9 @@
 ---
 id: P004
 title: Account context completion
-state: TODO
-execution_status: Ready
-owner:
+state: IN_PROGRESS
+execution_status: In Progress
+owner: codex
 branch: codex/p004-account-context-completion
 pr:
 depends_on: []

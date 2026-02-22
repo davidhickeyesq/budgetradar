@@ -30,10 +30,27 @@ def parse_account_id(account_id: str) -> uuid.UUID:
         raise HTTPException(status_code=400, detail="Invalid account_id format") from exc
 
 
-def ensure_account_exists(session: Any, account_id: uuid.UUID) -> None:
+def ensure_account_exists(
+    session: Any,
+    account_id: uuid.UUID,
+    create_if_missing: bool = False,
+) -> Account:
     account = session.query(Account).filter(Account.id == account_id).first()
+    if account:
+        return account
+
+    if create_if_missing:
+        account = Account(id=account_id, name=f"Account {str(account_id)[:8]}")
+        session.add(account)
+        # SQLAlchemy sessions support flush; fakes in tests may not.
+        if hasattr(session, "flush"):
+            session.flush()
+        return account
+
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
+
+    return account
 
 
 def upsert_daily_metrics_rows(
@@ -112,7 +129,7 @@ async def import_csv(
         session = get_session()
         try:
             acc_uuid = parse_account_id(account_id)
-            ensure_account_exists(session, acc_uuid)
+            ensure_account_exists(session, acc_uuid, create_if_missing=True)
 
             df["date"] = pd.to_datetime(df["date"]).dt.date
             df["spend"] = pd.to_numeric(df["spend"], errors="coerce").fillna(0)
