@@ -9,8 +9,8 @@ pr:
 depends_on:
   - P005
 updated_at: 2026-02-22
-issue:
-project_item:
+issue: https://github.com/davidhickeyesq/budgetradar/issues/25
+project_item: PVTI_lAHOACofT84BPcnczgl7EVI
 epic_issue: https://github.com/davidhickeyesq/budgetradar/issues/14
 spec_path: /Users/davidhickey/Documents/Projects/budgetradar/docs/execution/packets/P006-data-quality-confidence.md
 ---

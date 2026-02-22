@@ -8,8 +8,8 @@ branch: codex/p004-account-context-completion
 pr:
 depends_on: []
 updated_at: 2026-02-22
-issue:
-project_item:
+issue: https://github.com/davidhickeyesq/budgetradar/issues/23
+project_item: PVTI_lAHOACofT84BPcnczgl7EUY
 epic_issue: https://github.com/davidhickeyesq/budgetradar/issues/14
 spec_path: /Users/davidhickey/Documents/Projects/budgetradar/docs/execution/packets/P004-account-context-completion.md
 ---

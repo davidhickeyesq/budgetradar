@@ -9,8 +9,8 @@ pr:
 depends_on:
   - P004
 updated_at: 2026-02-22
-issue:
-project_item:
+issue: https://github.com/davidhickeyesq/budgetradar/issues/24
+project_item: PVTI_lAHOACofT84BPcnczgl7EUo
 epic_issue: https://github.com/davidhickeyesq/budgetradar/issues/14
 spec_path: /Users/davidhickey/Documents/Projects/budgetradar/docs/execution/packets/P005-scenario-recommendations.md
 ---

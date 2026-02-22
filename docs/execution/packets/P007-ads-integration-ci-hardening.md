@@ -9,8 +9,8 @@ pr:
 depends_on:
   - P006
 updated_at: 2026-02-22
-issue:
-project_item:
+issue: https://github.com/davidhickeyesq/budgetradar/issues/26
+project_item: PVTI_lAHOACofT84BPcnczgl7EVU
 epic_issue: https://github.com/davidhickeyesq/budgetradar/issues/14
 spec_path: /Users/davidhickey/Documents/Projects/budgetradar/docs/execution/packets/P007-ads-integration-ci-hardening.md
 ---
