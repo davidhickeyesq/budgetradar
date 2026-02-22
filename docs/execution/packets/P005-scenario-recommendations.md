@@ -1,11 +1,11 @@
 ---
 id: P005
 title: Scenario recommendations
-state: IN_PROGRESS
-execution_status: In Progress
+state: REVIEW
+execution_status: In Review
 owner: codex
 branch: codex/p005-scenario-recommendations
-pr:
+pr: https://github.com/davidhickeyesq/budgetradar/pull/28
 depends_on:
   - P004
 updated_at: 2026-02-22
