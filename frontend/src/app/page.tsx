@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { TrafficLightRadar } from '@/components/TrafficLightRadar'
-import { analyzeChannels, getDefaultAccount, MarginalCpaResult } from '@/lib/api'
+import { analyzeChannels, MarginalCpaResult } from '@/lib/api'
+import { useDefaultAccountContext } from '@/lib/account-context'
 import type { ChannelMetrics } from '@/types'
 
 const TARGET_CPA = 50
@@ -18,34 +19,56 @@ function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
     trafficLight: result.traffic_light,
     rSquared: result.model_params?.r_squared ?? null,
     modelParams: result.model_params ?? null,
+    curvePoints: result.curve_points
+      ? result.curve_points.map((point) => ({
+          spend: point.spend,
+          marginalCpa: point.marginal_cpa,
+          zone: point.zone,
+        }))
+      : null,
+    currentPoint: result.current_point
+      ? {
+          spend: result.current_point.spend,
+          marginalCpa: result.current_point.marginal_cpa,
+        }
+      : null,
   }
 }
 
 export default function Home() {
   const [channels, setChannels] = useState<ChannelMetrics[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [accountId, setAccountId] = useState<string | null>(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const {
+    accountId,
+    accountName,
+    loading: accountLoading,
+    error: accountError,
+  } = useDefaultAccountContext()
 
   useEffect(() => {
+    if (!accountId) {
+      return
+    }
+
     async function fetchData() {
       try {
-        setLoading(true)
-        const account = await getDefaultAccount()
-        setAccountId(account.account_id)
-
-        const response = await analyzeChannels(account.account_id, TARGET_CPA)
+        setAnalysisLoading(true)
+        const response = await analyzeChannels(accountId, TARGET_CPA)
         setChannels(response.channels.map(mapApiToChannelMetrics))
-        setError(null)
+        setAnalysisError(null)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load data')
+        setAnalysisError(err instanceof Error ? err.message : 'Failed to load data')
       } finally {
-        setLoading(false)
+        setAnalysisLoading(false)
       }
     }
 
     fetchData()
-  }, [])
+  }, [accountId])
+
+  const loading = accountLoading || analysisLoading
+  const error = accountError ?? analysisError
 
   if (loading) {
     return (
@@ -81,14 +104,22 @@ export default function Home() {
           <TrafficLightRadar channels={channels} targetCpa={TARGET_CPA} />
         </div>
         <div className="animate-fade-in-delay-1">
-          <SummaryCard channels={channels} />
+          <SummaryCard channels={channels} accountName={accountName} accountId={accountId} />
         </div>
       </div>
     </div>
   )
 }
 
-function SummaryCard({ channels }: { channels: ChannelMetrics[] }) {
+function SummaryCard({
+  channels,
+  accountName,
+  accountId,
+}: {
+  channels: ChannelMetrics[]
+  accountName: string | null
+  accountId: string | null
+}) {
   const totalSpend = channels.reduce((sum, c) => sum + c.currentSpend, 0)
   const greenChannels = channels.filter(c => c.trafficLight === 'green').length
   const yellowChannels = channels.filter(c => c.trafficLight === 'yellow').length
@@ -99,7 +130,6 @@ function SummaryCard({ channels }: { channels: ChannelMetrics[] }) {
     <div className="card-static p-6 space-y-5">
       <h3 className="text-lg font-semibold text-slate-900">Summary</h3>
 
-      {/* Hero spend number */}
       <div>
         <p className="text-xs uppercase tracking-wider text-slate-400 mb-1">Total Daily Spend</p>
         <p className="hero-number">
@@ -114,7 +144,6 @@ function SummaryCard({ channels }: { channels: ChannelMetrics[] }) {
 
       <hr className="border-slate-100" />
 
-      {/* Status indicators */}
       <div className="space-y-3">
         <StatusRow dot="status-dot status-dot-green" label="Scale" count={greenChannels} color="text-emerald-600" />
         <StatusRow dot="status-dot status-dot-amber" label="Maintain" count={yellowChannels} color="text-amber-600" />
@@ -123,6 +152,16 @@ function SummaryCard({ channels }: { channels: ChannelMetrics[] }) {
           <StatusRow dot="status-dot status-dot-grey" label="No Data" count={greyChannels} color="text-slate-400" />
         )}
       </div>
+
+      {accountId && (
+        <>
+          <hr className="border-slate-100" />
+          <div className="text-xs text-slate-500 space-y-1">
+            <p className="font-medium text-slate-700">{accountName ?? 'Active Account'}</p>
+            <p className="font-mono">{accountId}</p>
+          </div>
+        </>
+      )}
     </div>
   )
 }

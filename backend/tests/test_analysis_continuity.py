@@ -40,7 +40,7 @@ def test_analyze_channels_continues_to_return_results_after_rename(monkeypatch):
     )
     monkeypatch.setattr(analysis, "get_current_spend", lambda account_id, channel_name: 140.0)
     monkeypatch.setattr(analysis, "save_model_params", lambda *args, **kwargs: None)
-    monkeypatch.setattr(analysis, "calculate_marginal_cpa", lambda current_spend, params: 42.0)
+    monkeypatch.setattr(analysis, "calculate_marginal_cpa", lambda current_spend, params, **kwargs: 42.0)
     monkeypatch.setattr(analysis, "get_traffic_light", lambda marginal_cpa, target_cpa: "yellow")
 
     client = _build_client()

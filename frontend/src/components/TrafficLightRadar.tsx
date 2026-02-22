@@ -66,7 +66,19 @@ interface ChannelRowProps {
 }
 
 function ChannelRow({ channel, targetCpa, index }: ChannelRowProps) {
-  const { channelName, marginalCpa, trafficLight, currentSpend, rSquared, modelParams } = channel
+  const {
+    channelName,
+    marginalCpa,
+    trafficLight,
+    currentSpend,
+    rSquared,
+    modelParams,
+    curvePoints,
+    currentPoint,
+  } = channel
+
+  const hasBackendCurve = Boolean(curvePoints && curvePoints.length > 0)
+  const hasLegacyCurve = Boolean(modelParams && marginalCpa !== null)
 
   return (
     <div
@@ -91,7 +103,7 @@ function ChannelRow({ channel, targetCpa, index }: ChannelRowProps) {
       </div>
 
       {/* Cost Curve Chart */}
-      {modelParams && marginalCpa !== null ? (
+      {hasBackendCurve || hasLegacyCurve ? (
         <>
           <p className="text-xs text-slate-400 mb-2">How marginal CPA changes as you scale spend</p>
           <CostCurveChart
@@ -99,6 +111,8 @@ function ChannelRow({ channel, targetCpa, index }: ChannelRowProps) {
             currentSpend={currentSpend}
             targetCpa={targetCpa}
             channelName={channelName}
+            curvePoints={curvePoints}
+            currentPoint={currentPoint}
           />
           {/* Chart legend */}
           <div className="flex items-center justify-center gap-5 mt-3 text-xs text-slate-500">

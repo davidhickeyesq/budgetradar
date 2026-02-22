@@ -134,10 +134,39 @@ def fit_hill_model(
     return best_result
 
 
+def _get_prior_adstock_state(
+    current_spend: float,
+    alpha: float,
+    spend_history: Optional[np.ndarray] = None,
+) -> float:
+    """
+    Resolve adstock_{t-1} so marginal CPA can evaluate spend_t with carryover.
+    """
+    if alpha <= 0 or spend_history is None:
+        return 0.0
+
+    history = np.asarray(spend_history, dtype=float)
+    if history.size == 0:
+        return 0.0
+
+    # If history includes current_spend as last point, exclude it for prior state.
+    if np.isclose(history[-1], current_spend):
+        prior_history = history[:-1]
+    else:
+        prior_history = history
+
+    if prior_history.size == 0:
+        return 0.0
+
+    return float(apply_adstock(prior_history, alpha)[-1])
+
+
 def calculate_marginal_cpa(
     current_spend: float,
     params: HillFitResult,
-    increment: float = 0.10
+    increment: float = 0.10,
+    spend_history: Optional[np.ndarray] = None,
+    prior_adstock_state: Optional[float] = None,
 ) -> Optional[float]:
     """
     Calculate Marginal CPA using the 10% increment rule (per AGENTS.md).
@@ -146,10 +175,17 @@ def calculate_marginal_cpa(
     """
     if params.status != "success" or current_spend <= 0:
         return None
-    
-    adstocked_current = current_spend
-    adstocked_next = current_spend * (1 + increment)
-    
+
+    prior_state = (
+        float(prior_adstock_state)
+        if prior_adstock_state is not None
+        else _get_prior_adstock_state(current_spend, params.alpha, spend_history)
+    )
+
+    spend_next = current_spend * (1 + increment)
+    adstocked_current = current_spend + (params.alpha * prior_state)
+    adstocked_next = spend_next + (params.alpha * prior_state)
+
     conversions_current = hill_function(
         np.array([adstocked_current]),
         params.max_yield,
@@ -169,10 +205,72 @@ def calculate_marginal_cpa(
     if delta_conversions <= 0:
         return None
     
-    delta_spend = adstocked_next - adstocked_current
+    delta_spend = spend_next - current_spend
     marginal_cpa = delta_spend / delta_conversions
-    
+
     return marginal_cpa
+
+
+def generate_marginal_curve_points(
+    current_spend: float,
+    params: HillFitResult,
+    target_cpa: float,
+    spend_history: Optional[np.ndarray] = None,
+    increment: float = 0.10,
+) -> tuple[list[dict[str, float | str]], Optional[dict[str, float]]]:
+    """
+    Generate backend chart payload so frontend and backend share identical math.
+    """
+    if params.status != "success" or current_spend <= 0:
+        return [], None
+
+    prior_state = _get_prior_adstock_state(current_spend, params.alpha, spend_history)
+
+    min_spend = max(current_spend * 0.05, 10.0)
+    max_spend = max(current_spend * 4.0, min_spend * 1.1)
+    num_points = 120
+    step = (max_spend - min_spend) / num_points
+
+    points: list[dict[str, float | str]] = []
+    for idx in range(num_points + 1):
+        spend_level = min_spend + (idx * step)
+        marginal_cpa = calculate_marginal_cpa(
+            spend_level,
+            params,
+            increment=increment,
+            prior_adstock_state=prior_state,
+        )
+        if marginal_cpa is None or marginal_cpa > target_cpa * 5:
+            continue
+
+        zone = get_traffic_light(marginal_cpa, target_cpa)
+        if zone == "grey":
+            continue
+
+        points.append(
+            {
+                "spend": float(round(spend_level)),
+                "marginal_cpa": round(float(marginal_cpa), 2),
+                "zone": zone,
+            }
+        )
+
+    current_marginal_cpa = calculate_marginal_cpa(
+        current_spend,
+        params,
+        increment=increment,
+        prior_adstock_state=prior_state,
+    )
+    current_point = (
+        {
+            "spend": float(round(current_spend)),
+            "marginal_cpa": round(float(current_marginal_cpa), 2),
+        }
+        if current_marginal_cpa is not None
+        else None
+    )
+
+    return points, current_point
 
 
 def get_traffic_light(marginal_cpa: Optional[float], target_cpa: float) -> str:

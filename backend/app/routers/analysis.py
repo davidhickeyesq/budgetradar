@@ -12,16 +12,16 @@ from app.models.schemas import (
 from app.services.hill_function import (
     fit_hill_model,
     calculate_marginal_cpa,
+    generate_marginal_curve_points,
     get_traffic_light,
     get_recommendation,
-    HillFitResult,
 )
 from app.services.database import (
     fetch_daily_metrics,
     fetch_channels_for_account,
     get_current_spend,
+    get_or_create_default_account,
     save_model_params,
-    fetch_default_account,
 )
 
 router = APIRouter(prefix="/api", tags=["analysis"])
@@ -29,11 +29,8 @@ router = APIRouter(prefix="/api", tags=["analysis"])
 
 @router.get("/accounts/default", response_model=AccountResponse)
 async def get_default_account():
-    """
-    Get the default account context.
-    """
-    account = fetch_default_account()
-    return AccountResponse(account_id=str(account.id), name=account.name)
+    account_id, name = get_or_create_default_account()
+    return AccountResponse(account_id=account_id, name=name)
 
 
 @router.post("/fit-model", response_model=FitModelResponse)
@@ -67,6 +64,8 @@ async def fit_model(request: FitModelRequest):
                     traffic_light="grey",
                     recommendation=get_recommendation("grey"),
                     model_params=None,
+                    curve_points=[],
+                    current_point=None,
                 )
             )
         
@@ -87,9 +86,19 @@ async def fit_model(request: FitModelRequest):
     save_model_params(request.account_id, request.channel_name, params)
     
     current_spend = get_current_spend(request.account_id, request.channel_name)
-    marginal_cpa = calculate_marginal_cpa(current_spend, fit_result)
+    marginal_cpa = calculate_marginal_cpa(
+        current_spend,
+        fit_result,
+        spend_history=spend,
+    )
     traffic_light = get_traffic_light(marginal_cpa, request.target_cpa)
-    
+    curve_points, current_point = generate_marginal_curve_points(
+        current_spend=current_spend,
+        params=fit_result,
+        target_cpa=request.target_cpa,
+        spend_history=spend,
+    )
+
     return FitModelResponse(
         success=True,
         message="Model fitted successfully",
@@ -101,6 +110,8 @@ async def fit_model(request: FitModelRequest):
             traffic_light=traffic_light,
             recommendation=get_recommendation(traffic_light),
             model_params=params,
+            curve_points=curve_points,
+            current_point=current_point,
         )
     )
 
@@ -138,6 +149,8 @@ async def analyze_channels(request: ChannelAnalysisRequest):
                 traffic_light="grey",
                 recommendation=get_recommendation("grey"),
                 model_params=None,
+                curve_points=[],
+                current_point=None,
             ))
             continue
         
@@ -151,9 +164,19 @@ async def analyze_channels(request: ChannelAnalysisRequest):
         
         save_model_params(request.account_id, channel_name, params)
         
-        marginal_cpa = calculate_marginal_cpa(current_spend, fit_result)
+        marginal_cpa = calculate_marginal_cpa(
+            current_spend,
+            fit_result,
+            spend_history=spend,
+        )
         traffic_light = get_traffic_light(marginal_cpa, request.target_cpa)
-        
+        curve_points, current_point = generate_marginal_curve_points(
+            current_spend=current_spend,
+            params=fit_result,
+            target_cpa=request.target_cpa,
+            spend_history=spend,
+        )
+
         results.append(MarginalCpaResult(
             channel_name=channel_name,
             current_spend=current_spend,
@@ -162,6 +185,8 @@ async def analyze_channels(request: ChannelAnalysisRequest):
             traffic_light=traffic_light,
             recommendation=get_recommendation(traffic_light),
             model_params=params,
+            curve_points=curve_points,
+            current_point=current_point,
         ))
     
     results.sort(key=lambda x: (

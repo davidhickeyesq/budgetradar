@@ -8,6 +8,17 @@ export interface HillParameters {
   r_squared: number
 }
 
+export interface CurvePointPayload {
+  spend: number
+  marginal_cpa: number
+  zone: 'green' | 'yellow' | 'red'
+}
+
+export interface CurrentPointPayload {
+  spend: number
+  marginal_cpa: number
+}
+
 export interface MarginalCpaResult {
   channel_name: string
   current_spend: number
@@ -16,10 +27,17 @@ export interface MarginalCpaResult {
   traffic_light: 'green' | 'yellow' | 'red' | 'grey'
   recommendation: string
   model_params: HillParameters | null
+  curve_points?: CurvePointPayload[]
+  current_point?: CurrentPointPayload | null
 }
 
 export interface ChannelAnalysisResponse {
   channels: MarginalCpaResult[]
+}
+
+export interface DefaultAccountResponse {
+  account_id: string
+  name: string
 }
 
 export async function analyzeChannels(
@@ -44,16 +62,13 @@ export async function analyzeChannels(
   return response.json()
 }
 
-export interface AccountResponse {
-  account_id: string
-  name: string
-}
-
-export async function getDefaultAccount(): Promise<AccountResponse> {
+export async function getDefaultAccount(): Promise<DefaultAccountResponse> {
   const response = await fetch(`${API_URL}/api/accounts/default`)
+
   if (!response.ok) {
-    throw new Error('Failed to fetch default account')
+    throw new Error(`Default account API error: ${response.status}`)
   }
+
   return response.json()
 }
 

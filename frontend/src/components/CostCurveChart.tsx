@@ -12,19 +12,15 @@ import {
     ReferenceArea,
     ResponsiveContainer,
 } from 'recharts'
-import type { HillParameters } from '@/types'
+import type { CurvePoint, CurrentPoint, HillParameters } from '@/types'
 
 interface CostCurveChartProps {
-    modelParams: HillParameters
+    modelParams: HillParameters | null
     currentSpend: number
     targetCpa: number
     channelName: string
-}
-
-interface CurvePoint {
-    spend: number
-    marginalCpa: number
-    zone: 'green' | 'yellow' | 'red'
+    curvePoints?: CurvePoint[] | null
+    currentPoint?: CurrentPoint | null
 }
 
 /**
@@ -132,11 +128,29 @@ function CustomTooltip({ active, payload, label }: any) {
     )
 }
 
-export function CostCurveChart({ modelParams, currentSpend, targetCpa, channelName }: CostCurveChartProps) {
-    const data = generateCurveData(modelParams, currentSpend, targetCpa)
-    const currentMcpa = marginalCpaAt(currentSpend, modelParams)
+export function CostCurveChart({
+    modelParams,
+    currentSpend,
+    targetCpa,
+    channelName,
+    curvePoints,
+    currentPoint,
+}: CostCurveChartProps) {
+    const backendData = curvePoints ?? []
+    const fallbackData = modelParams ? generateCurveData(modelParams, currentSpend, targetCpa) : []
+    const data = backendData.length > 0 ? backendData : fallbackData
 
-    if (data.length === 0 || currentMcpa === null) {
+    const fallbackCurrentMcpa = modelParams ? marginalCpaAt(currentSpend, modelParams) : null
+    const resolvedCurrentPoint = currentPoint ?? (
+        fallbackCurrentMcpa !== null
+            ? {
+                spend: Math.round(currentSpend),
+                marginalCpa: Math.round(fallbackCurrentMcpa * 100) / 100,
+            }
+            : null
+    )
+
+    if (data.length === 0 || resolvedCurrentPoint === null) {
         return (
             <div className="py-4 px-3 rounded-lg bg-slate-50 text-center">
                 <p className="text-sm text-slate-400">Insufficient data to render cost curve</p>
@@ -145,7 +159,7 @@ export function CostCurveChart({ modelParams, currentSpend, targetCpa, channelNa
     }
 
     // Y-axis: always include the target CPA with headroom
-    const maxMcpa = Math.max(...data.map(d => d.marginalCpa))
+    const maxMcpa = Math.max(...data.map(d => d.marginalCpa), resolvedCurrentPoint.marginalCpa)
     const yMax = Math.max(targetCpa * 1.6, maxMcpa * 1.1)
 
     // Zone boundary values
@@ -265,7 +279,7 @@ export function CostCurveChart({ modelParams, currentSpend, targetCpa, channelNa
 
                     {/* Current spend vertical marker */}
                     <ReferenceLine
-                        x={Math.round(currentSpend)}
+                        x={Math.round(resolvedCurrentPoint.spend)}
                         stroke="#475569"
                         strokeDasharray="4 4"
                         strokeWidth={1}
@@ -274,8 +288,8 @@ export function CostCurveChart({ modelParams, currentSpend, targetCpa, channelNa
 
                     {/* "You are here" dot */}
                     <ReferenceDot
-                        x={Math.round(currentSpend)}
-                        y={Math.round(currentMcpa * 100) / 100}
+                        x={Math.round(resolvedCurrentPoint.spend)}
+                        y={Math.round(resolvedCurrentPoint.marginalCpa * 100) / 100}
                         r={7}
                         fill="#1e293b"
                         stroke="#ffffff"

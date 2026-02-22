@@ -51,6 +51,15 @@ The database is **auto-seeded** with demo data on first run. You should see Goog
    - 🔴 **Red:** Marginal CPA > Target (Diminishing returns - Pull back)
    - ⚪ **Grey:** Insufficient data (< 21 days)
 
+## 👤 Default Account Context
+
+The frontend now resolves account context from:
+
+- `GET /api/accounts/default` → `{ "account_id": "<uuid>", "name": "<string>" }`
+
+In local-first mode, import/sync requests with a valid but unknown `account_id`
+auto-create that account before ingesting data.
+
 ---
 
 ## 📦 Common Commands
@@ -64,7 +73,7 @@ We use `make` to simplify common development tasks:
 | `make clean` | Stop containers and remove all data volumes (Fresh start) |
 | `make logs` | Stream logs from all services |
 | `make health` | Check health status of all 3 services |
-| `make test` | Run backend unit tests |
+| `make test` | Run backend tests (local venv/system pytest, Docker fallback) |
 
 ---
 
@@ -81,6 +90,45 @@ Download the [template CSV here](http://localhost:8000/api/import/template).
 
 **Optional:**
 - `impressions`: Integer
+
+---
+
+## 🔄 Google Ads Sync (MVP Interface)
+
+`POST /api/import/google-ads/sync`
+
+Request payload:
+
+```json
+{
+  "account_id": "00000000-0000-0000-0000-000000000000",
+  "customer_id": "123-456-7890",
+  "date_from": "2025-01-01",
+  "date_to": "2025-01-15"
+}
+```
+
+Response payload:
+
+```json
+{
+  "success": true,
+  "rows_imported": 30,
+  "channels": ["Google Display", "Google Search"],
+  "date_range": {
+    "start": "2025-01-01",
+    "end": "2025-01-15"
+  }
+}
+```
+
+This endpoint currently uses a deterministic local provider to validate ingestion/upsert flow. It is designed so a real Google Ads provider can replace it later without changing the API contract.
+
+---
+
+## 🔐 Optional API Key Protection
+
+Set `REQUIRE_API_KEY=true` and `APP_API_KEY=<your-key>` to require `X-API-Key` on protected API routes (`/api/*`, excluding `/api/health`).
 
 ---
 
@@ -105,9 +153,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for deep dive.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | postgres://... | Internal Docker network URL |
-
 | `MIN_DATA_DAYS` | 21 | Minimum days required for model fitting |
 | `MARGINAL_INCREMENT` | 0.10 | Spend increment (10%) for marginal calc |
+| `REQUIRE_API_KEY` | `false` | Enable API key guardrail for protected API routes |
+| `APP_API_KEY` | _(empty)_ | Expected `X-API-Key` value when guardrail is enabled |
+| `GOOGLE_ADS_MAX_SYNC_DAYS` | `93` | Max date span accepted by Google Ads sync endpoint |
 
 ---
 

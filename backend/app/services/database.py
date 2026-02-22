@@ -1,13 +1,17 @@
-import uuid
 from sqlalchemy import create_engine, select, desc, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 from functools import lru_cache
 import numpy as np
 from typing import Optional
+import uuid
 
 from app.config import get_settings
 from app.models.schemas import HillParameters
-from app.models.db_models import Base, DailyMetric, MMMModel, Account
+from app.models.db_models import Base, Account, DailyMetric, MMMModel
+
+
+DEFAULT_ACCOUNT_ID = uuid.UUID("a8465a7b-bf39-4352-9658-4f1b8d05b381")
+DEFAULT_ACCOUNT_NAME = "Demo Company"
 
 
 @lru_cache
@@ -203,5 +207,23 @@ def get_model_params(
             max_yield=float(model.max_yield),
             r_squared=float(model.r_squared),
         )
+    finally:
+        session.close()
+
+
+def get_or_create_default_account() -> tuple[str, str]:
+    """
+    Return deterministic default account for local-first workflows.
+    Creates it if missing so frontend can bootstrap without seed/manual setup.
+    """
+    session = get_session()
+    try:
+        account = session.get(Account, DEFAULT_ACCOUNT_ID)
+        if account is None:
+            account = Account(id=DEFAULT_ACCOUNT_ID, name=DEFAULT_ACCOUNT_NAME)
+            session.add(account)
+            session.commit()
+
+        return str(account.id), account.name
     finally:
         session.close()

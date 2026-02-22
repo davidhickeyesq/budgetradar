@@ -1,29 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useDefaultAccountContext } from '@/lib/account-context';
 import CsvUploader from '../../components/CsvUploader';
-import { getDefaultAccount } from '../../lib/api';
 
 export default function ImportPage() {
-    const [accountId, setAccountId] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { accountId, accountName, loading, error } = useDefaultAccountContext();
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-    useEffect(() => {
-        getDefaultAccount()
-            .then(account => {
-                setAccountId(account.account_id);
-            })
-            .catch(err => console.error('Failed to fetch default account:', err))
-            .finally(() => setLoading(false));
-    }, []);
-
     if (loading) {
-        return <div className="p-8 text-center text-slate-500">Loading account context...</div>;
+        return (
+            <main className="space-y-6">
+                <div className="card-static p-6">
+                    <p className="text-sm text-slate-500">Loading account context…</p>
+                </div>
+            </main>
+        );
     }
 
-    if (!accountId) {
-        return <div className="p-8 text-center text-red-500">Failed to load account context. Please ensure backend is running.</div>;
+    if (error || !accountId) {
+        return (
+            <main className="space-y-6">
+                <div className="card-static border-status-red p-6">
+                    <h3 className="font-semibold text-red-800">Error loading account context</h3>
+                    <p className="text-red-600 text-sm mt-1">{error ?? 'No account available'}</p>
+                </div>
+            </main>
+        );
     }
 
     return (
@@ -66,7 +68,7 @@ export default function ImportPage() {
             </div>
 
             <p className="text-xs text-slate-400 mt-8">
-                Account ID: {accountId}
+                {accountName ?? 'Active Account'} · {accountId}
             </p>
         </main>
     );
