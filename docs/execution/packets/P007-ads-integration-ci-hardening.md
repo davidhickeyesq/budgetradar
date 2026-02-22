@@ -1,8 +1,8 @@
 ---
 id: P007
 title: Ads integration and CI hardening
-state: REVIEW
-execution_status: In Review
+state: DONE
+execution_status: Done
 owner: codex
 branch: codex/p007-ads-integration-ci-hardening
 pr: https://github.com/davidhickeyesq/budgetradar/pull/30
