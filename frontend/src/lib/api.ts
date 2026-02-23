@@ -24,6 +24,8 @@ export interface MarginalCpaResult {
   current_spend: number
   marginal_cpa: number | null
   target_cpa: number
+  effective_target_cpa?: number
+  target_source?: 'default' | 'override'
   traffic_light: 'green' | 'yellow' | 'red' | 'grey'
   recommendation: string
   model_params: HillParameters | null
@@ -40,6 +42,12 @@ export interface DefaultAccountResponse {
   name: string
 }
 
+export interface TargetCpaOverridePayload {
+  entity_type: 'channel' | 'campaign'
+  entity_key: string
+  target_cpa: number
+}
+
 export type ScenarioAction = 'increase' | 'decrease' | 'maintain' | 'locked' | 'insufficient_data'
 
 export interface ScenarioRecommendationRequest {
@@ -47,6 +55,7 @@ export interface ScenarioRecommendationRequest {
   target_cpa: number
   budget_delta_percent?: number
   locked_channels?: string[]
+  target_cpa_overrides?: TargetCpaOverridePayload[]
 }
 
 export interface ScenarioChannelRecommendationPayload {
@@ -96,7 +105,8 @@ export interface ScenarioListResponse {
 
 export async function analyzeChannels(
   accountId: string,
-  targetCpa: number = 50
+  targetCpa: number = 50,
+  targetCpaOverrides: TargetCpaOverridePayload[] = []
 ): Promise<ChannelAnalysisResponse> {
   const response = await fetch(`${API_URL}/api/analyze-channels`, {
     method: 'POST',
@@ -106,6 +116,7 @@ export async function analyzeChannels(
     body: JSON.stringify({
       account_id: accountId,
       target_cpa: targetCpa,
+      target_cpa_overrides: targetCpaOverrides,
     }),
   })
 

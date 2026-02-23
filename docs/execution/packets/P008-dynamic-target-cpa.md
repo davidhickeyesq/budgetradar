@@ -1,9 +1,9 @@
 ---
 id: P008
 title: Per-entity target CPA contracts and UI
-state: TODO
-execution_status: Backlog
-owner:
+state: IN_PROGRESS
+execution_status: In Progress
+owner: codex
 branch: codex/p008-dynamic-target-cpa
 pr:
 depends_on:

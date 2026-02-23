@@ -34,6 +34,8 @@ class MarginalCpaResult(BaseModel):
     current_spend: float
     marginal_cpa: Optional[float]
     target_cpa: float
+    effective_target_cpa: Optional[float] = None
+    target_source: Optional[Literal["default", "override"]] = None
     traffic_light: Literal["green", "yellow", "red", "grey"]
     recommendation: str
     model_params: Optional[HillParameters]
@@ -53,9 +55,16 @@ class FitModelResponse(BaseModel):
     result: Optional[MarginalCpaResult]
 
 
+class TargetCpaOverride(BaseModel):
+    entity_type: Literal["channel", "campaign"]
+    entity_key: str = Field(min_length=1)
+    target_cpa: float = Field(gt=0)
+
+
 class ChannelAnalysisRequest(BaseModel):
     account_id: str
     target_cpa: float = 50.0
+    target_cpa_overrides: list[TargetCpaOverride] = Field(default_factory=list)
 
 
 class ChannelAnalysisResponse(BaseModel):
@@ -72,6 +81,7 @@ class ScenarioRecommendationRequest(BaseModel):
     target_cpa: float = 50.0
     budget_delta_percent: float = 0.0
     locked_channels: list[str] = Field(default_factory=list)
+    target_cpa_overrides: list[TargetCpaOverride] = Field(default_factory=list)
 
 
 class ScenarioChannelRecommendation(BaseModel):

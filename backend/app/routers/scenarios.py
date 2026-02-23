@@ -118,6 +118,7 @@ async def recommend_scenario(request: ScenarioRecommendationRequest):
     computations = compute_account_channel_analysis(
         account_id=request.account_id,
         target_cpa=request.target_cpa,
+        target_cpa_overrides=request.target_cpa_overrides,
     )
     if not computations:
         raise HTTPException(status_code=404, detail="No channels found for this account")
@@ -144,6 +145,7 @@ async def recommend_scenario(request: ScenarioRecommendationRequest):
                 "current_spend": result.current_spend,
                 "recommended_spend": recommended_spend,
                 "current_marginal_cpa": result.marginal_cpa,
+                "target_cpa": result.target_cpa,
                 "fit_result": computation.fit_result,
                 "prior_adstock_state": computation.prior_adstock_state,
                 "locked": is_locked,
@@ -184,7 +186,7 @@ async def recommend_scenario(request: ScenarioRecommendationRequest):
 
         rationale = get_scenario_rationale(
             traffic_light=channel["traffic_light"],
-            target_cpa=request.target_cpa,
+            target_cpa=channel["target_cpa"],
             marginal_cpa=channel["current_marginal_cpa"],
             action=final_action,
             locked=channel["locked"],

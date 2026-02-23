@@ -23,6 +23,7 @@ def _channel_computation(
     current_spend: float,
     marginal_cpa: float | None,
     traffic_light: str,
+    target_cpa: float = 50.0,
     fit_result: HillFitResult | None = None,
 ) -> ChannelComputation:
     return ChannelComputation(
@@ -30,7 +31,7 @@ def _channel_computation(
             channel_name=channel_name,
             current_spend=current_spend,
             marginal_cpa=marginal_cpa,
-            target_cpa=50.0,
+            target_cpa=target_cpa,
             traffic_light=traffic_light,
             recommendation="",
             model_params=None,
@@ -56,7 +57,7 @@ def test_recommend_scenario_returns_deterministic_10_percent_moves(monkeypatch):
     monkeypatch.setattr(
         scenarios,
         "compute_account_channel_analysis",
-        lambda account_id, target_cpa: [
+        lambda account_id, target_cpa, target_cpa_overrides=None: [
             _channel_computation("Search", 100.0, 30.0, "green", fit_result=shared_fit),
             _channel_computation("Display", 100.0, 70.0, "red", fit_result=shared_fit),
         ],
@@ -97,7 +98,7 @@ def test_recommend_scenario_honors_threshold_actions_and_locks(monkeypatch):
     monkeypatch.setattr(
         scenarios,
         "compute_account_channel_analysis",
-        lambda account_id, target_cpa: [
+        lambda account_id, target_cpa, target_cpa_overrides=None: [
             _channel_computation("Search", 100.0, 40.0, "green", fit_result=shared_fit),
             _channel_computation("Brand", 100.0, 50.0, "yellow", fit_result=shared_fit),
             _channel_computation("Display", 100.0, 62.0, "red", fit_result=shared_fit),
@@ -125,6 +126,51 @@ def test_recommend_scenario_honors_threshold_actions_and_locks(monkeypatch):
     assert recommendations["Display"]["action"] == "decrease"
     assert recommendations["Organic"]["action"] == "insufficient_data"
     assert "110% threshold" in recommendations["Display"]["rationale"]
+
+
+def test_recommend_scenario_passes_channel_target_overrides(monkeypatch):
+    shared_fit = HillFitResult(
+        alpha=0.0,
+        beta=1.0,
+        kappa=100.0,
+        max_yield=1000.0,
+        r_squared=0.95,
+        status="success",
+    )
+    captured_overrides = None
+
+    def fake_compute(account_id, target_cpa, target_cpa_overrides=None):
+        nonlocal captured_overrides
+        captured_overrides = target_cpa_overrides
+        return [
+            _channel_computation("Search", 100.0, 60.0, "yellow", target_cpa=80.0, fit_result=shared_fit),
+        ]
+
+    monkeypatch.setattr(scenarios, "compute_account_channel_analysis", fake_compute)
+
+    client = _build_client()
+    response = client.post(
+        "/api/scenarios/recommend",
+        json={
+            "account_id": str(uuid.uuid4()),
+            "target_cpa": 50.0,
+            "budget_delta_percent": 0,
+            "locked_channels": [],
+            "target_cpa_overrides": [
+                {"entity_type": "channel", "entity_key": "Search", "target_cpa": 80.0},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured_overrides is not None
+    assert len(captured_overrides) == 1
+    assert captured_overrides[0].entity_type == "channel"
+    assert captured_overrides[0].entity_key == "Search"
+    assert captured_overrides[0].target_cpa == 80.0
+
+    recommendation = response.json()["recommendations"][0]
+    assert "90%-110% band ($72.00-$88.00)" in recommendation["rationale"]
 
 
 def test_scenario_save_and_list_roundtrip(monkeypatch):

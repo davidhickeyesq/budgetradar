@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
@@ -11,6 +12,7 @@ from app.models.schemas import (
     MarginalCpaResult,
     HillParameters,
     AccountResponse,
+    TargetCpaOverride,
 )
 from app.services.hill_function import (
     HillFitResult,
@@ -32,6 +34,35 @@ from app.services.database import (
 router = APIRouter(prefix="/api", tags=["analysis"])
 
 
+def _build_channel_target_overrides(
+    overrides: list[TargetCpaOverride] | None,
+) -> dict[str, float]:
+    if not overrides:
+        return {}
+
+    channel_overrides: dict[str, float] = {}
+    for override in overrides:
+        if override.entity_type != "channel":
+            continue
+
+        key = override.entity_key.strip().lower()
+        if key:
+            channel_overrides[key] = float(override.target_cpa)
+
+    return channel_overrides
+
+
+def _resolve_channel_target_cpa(
+    channel_name: str,
+    default_target_cpa: float,
+    channel_overrides: dict[str, float],
+) -> tuple[float, str]:
+    key = channel_name.strip().lower()
+    if key in channel_overrides:
+        return channel_overrides[key], "override"
+    return default_target_cpa, "default"
+
+
 @dataclass
 class ChannelComputation:
     result: MarginalCpaResult
@@ -44,6 +75,7 @@ def compute_channel_analysis(
     account_id: str,
     channel_name: str,
     target_cpa: float,
+    target_source: Literal["default", "override"] = "default",
 ) -> ChannelComputation | None:
     """
     Shared channel analysis context for dashboard + scenario recommendation APIs.
@@ -64,6 +96,8 @@ def compute_channel_analysis(
                 current_spend=current_spend,
                 marginal_cpa=avg_cpa,
                 target_cpa=target_cpa,
+                effective_target_cpa=target_cpa,
+                target_source=target_source,
                 traffic_light="grey",
                 recommendation=get_recommendation("grey"),
                 model_params=None,
@@ -109,6 +143,8 @@ def compute_channel_analysis(
             current_spend=current_spend,
             marginal_cpa=marginal_cpa,
             target_cpa=target_cpa,
+            effective_target_cpa=target_cpa,
+            target_source=target_source,
             traffic_light=traffic_light,
             recommendation=get_recommendation(traffic_light),
             model_params=params,
@@ -124,15 +160,23 @@ def compute_channel_analysis(
 def compute_account_channel_analysis(
     account_id: str,
     target_cpa: float,
+    target_cpa_overrides: list[TargetCpaOverride] | None = None,
 ) -> list[ChannelComputation]:
     channels = fetch_channels_for_account(account_id)
     results: list[ChannelComputation] = []
+    channel_overrides = _build_channel_target_overrides(target_cpa_overrides)
 
     for channel_name in channels:
+        effective_target_cpa, target_source = _resolve_channel_target_cpa(
+            channel_name=channel_name,
+            default_target_cpa=target_cpa,
+            channel_overrides=channel_overrides,
+        )
         computation = compute_channel_analysis(
             account_id=account_id,
             channel_name=channel_name,
-            target_cpa=target_cpa,
+            target_cpa=effective_target_cpa,
+            target_source=target_source,
         )
         if computation is not None:
             results.append(computation)
@@ -178,6 +222,8 @@ async def fit_model(request: FitModelRequest):
                     current_spend=current,
                     marginal_cpa=avg_cpa,
                     target_cpa=request.target_cpa,
+                    effective_target_cpa=request.target_cpa,
+                    target_source="default",
                     traffic_light="grey",
                     recommendation=get_recommendation("grey"),
                     model_params=None,
@@ -224,6 +270,8 @@ async def fit_model(request: FitModelRequest):
             current_spend=current_spend,
             marginal_cpa=marginal_cpa,
             target_cpa=request.target_cpa,
+            effective_target_cpa=request.target_cpa,
+            target_source="default",
             traffic_light=traffic_light,
             recommendation=get_recommendation(traffic_light),
             model_params=params,
@@ -241,6 +289,7 @@ async def analyze_channels(request: ChannelAnalysisRequest):
     computations = compute_account_channel_analysis(
         account_id=request.account_id,
         target_cpa=request.target_cpa,
+        target_cpa_overrides=request.target_cpa_overrides,
     )
 
     if not computations:
