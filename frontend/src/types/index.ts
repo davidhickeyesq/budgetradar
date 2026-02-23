@@ -1,4 +1,5 @@
 export type TrafficLight = 'green' | 'yellow' | 'red' | 'grey'
+export type ConfidenceTier = 'high' | 'medium' | 'low' | 'unknown'
 
 export interface HillParameters {
   alpha: number
@@ -56,6 +57,7 @@ export interface ScenarioRecommendation {
   projectedMarginalCpa: number | null
   trafficLight: TrafficLight
   locked: boolean
+  confidenceTier: ConfidenceTier
 }
 
 export interface ScenarioProjectedSummary {
@@ -97,4 +99,18 @@ export function getRecommendation(trafficLight: TrafficLight): string {
     case 'grey':
       return 'Insufficient data (need 21+ days)'
   }
+}
+
+export function getConfidenceTier(rSquared: number | null): ConfidenceTier {
+  if (rSquared === null) return 'unknown'
+  if (rSquared >= 0.85) return 'high'
+  if (rSquared >= 0.65) return 'medium'
+  return 'low'
+}
+
+export function getConfidenceLabel(tier: ConfidenceTier): string {
+  if (tier === 'high') return 'High confidence'
+  if (tier === 'medium') return 'Medium confidence'
+  if (tier === 'low') return 'Low confidence'
+  return 'Unknown confidence'
 }

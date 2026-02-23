@@ -4,6 +4,7 @@ import uuid
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
 from app.routers import google_ads, import_data
 from app.services.google_ads_provider_types import GoogleAdsMetricRow
 
@@ -139,6 +140,24 @@ def test_google_ads_sync_upserts_rows(monkeypatch):
     assert session.added_rows[0].channel_name == "Google Display"
     assert session.commit_count == 1
     assert session.closed is True
+
+
+def test_google_ads_capabilities_returns_provider_mode_and_max_sync_days(monkeypatch):
+    monkeypatch.setenv("GOOGLE_ADS_PROVIDER", "real")
+    monkeypatch.setenv("GOOGLE_ADS_MAX_SYNC_DAYS", "31")
+    get_settings.cache_clear()
+
+    try:
+        client = _build_client()
+        response = client.get("/api/import/google-ads/capabilities")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload == {
+            "provider_mode": "real",
+            "max_sync_days": 31,
+        }
+    finally:
+        get_settings.cache_clear()
 
 
 def test_google_ads_sync_rejects_large_date_range(monkeypatch):
