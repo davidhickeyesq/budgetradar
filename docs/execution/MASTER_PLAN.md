@@ -25,6 +25,12 @@ using:
 5. `P005` Scenario recommendations
 6. `P006` Data quality and confidence guardrails
 7. `P007` Ads integration and CI hardening
+8. `P008` Per-entity target CPA contracts and UI
+9. `P009` Confidence policy and gating semantics
+10. `P010` Scenario step constraint UX clarity
+11. `P011` Google Ads OAuth connect flow
+12. `P012` Campaign-level granularity
+13. `P013` Scenario deploy-to-platform
 
 Dependency chain:
 
@@ -33,6 +39,12 @@ Dependency chain:
 - `P005` depends on `P004`
 - `P006` depends on `P005`
 - `P007` depends on `P006`
+- `P009` depends on `P006`
+- `P008` depends on `P009`
+- `P010` depends on `P005`
+- `P011` depends on `P007`
+- `P012` depends on `P011`
+- `P013` depends on `P011`, `P012`, and `P005`
 
 ## Branch / PR Naming
 
@@ -89,7 +101,7 @@ The following controls are now committed in-repo:
 - `Type` (single select): `Epic`, `Packet`, `Chore`
 - `Execution Status` (single select): `Backlog`, `Ready`, `In Progress`,
   `Blocked`, `In Review`, `Done`
-- `Packet ID` (text): `P001` through `P007`
+- `Packet ID` (text): `P001` through `P013`
 - `Spec Path` (text): absolute path to packet markdown
 - `Branch` (text)
 - `PR URL` (text)
@@ -113,6 +125,6 @@ web UI.
 ## Validation Checklist
 
 - Epic shows all packet sub-issues.
-- Project filter `Type=Packet` returns exactly seven packet items.
+- Project filter `Type=Packet` returns exactly thirteen packet items.
 - Exactly one packet is `In Progress` at any time.
 - Packet issue, PR, and packet doc all cross-link to each other.

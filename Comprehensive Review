@@ -1,0 +1,138 @@
+# BudgetRadar: Daily-Use Reality Check (Engineering Memo)
+
+**Audience:** Product + Engineering  
+**Perspective:** Growth Marketing Operator (Google Ads-heavy)  
+**Date:** 2026-02-23  
+**Scope:** Documentation rewrite only. No runtime code or API changes in this pass.
+
+## Bottom Line
+BudgetRadar has a credible marginal-CPA engine and enough UI to run local analyses today. It is not yet a seamless daily operator tool because workflow integrations are incomplete (identity, deployment, and granularity). The main gap is productization of a strong analytical core, not replacement of the core math.
+
+## What Is Working Today (Fact-Checked)
+- **Canonical math guardrails are implemented:** Hill fitting with alpha grid search, 10% marginal increment, 21-day cold-start protection, and traffic-light thresholds are in place.
+- **CSV ingestion is usable for varied exports:** uploader detects headers, supports manual column mapping, and backend validates mapped canonical fields.
+- **Google Ads sync is exposed in UI:** import page includes a sync launcher with provider mode visibility and date-range limits.
+- **Confidence is surfaced in UI:** dashboard shows confidence tiers and low-confidence warning copy for scenario moves.
+- **Scenario planner is operational:** users can generate recommendations, lock channels, save scenarios, and export CSV/JSON.
+- **Target CPA is parameterized in backend request contracts:** API supports scalar `target_cpa` inputs even though frontend currently fixes a global value.
+
+## Critical Gaps (Severity-Ordered)
+### P0 - No end-user OAuth flow
+From an operator seat, daily use means connect once and stay synced. Current flow still depends on backend credential configuration and does not provide marketer-native account connect/disconnect UX.
+
+### P1 - Frontend hardcodes a universal target CPA
+Dashboard and planner currently use one global target value in UI state. Mixed-funnel teams need per-entity targets (at minimum per channel, ideally per campaign/portfolio). Backend scalar support exists, but multi-target orchestration does not.
+
+### P1 - No last-mile deployment to ad platforms
+Planner outputs are actionable but still manual. Save/export is not the same as applying budget updates. There is no deploy endpoint, no approval workflow, and no execution audit trail.
+
+### P2 - Google Ads granularity is too coarse for budget decisions
+CSV can carry granular rows, but current Google Ads provider logic groups by channel archetype. For real optimization, recommendations must resolve to campaign-level entities (and optionally portfolio/bidding strategy).
+
+### P2 - Confidence policy is advisory, not enforceable
+Current UX warns on low confidence but does not hard-gate recommendation generation. Upgrading to hard gating requires an explicit policy decision because `grey` currently means insufficient history (<21 days), not low model quality.
+
+## Public APIs / Interfaces / Types
+
+### Current-state contract (no changes in this review pass)
+- No runtime API, schema, or UI behavior changes are introduced by this memo.
+- Existing scalar `target_cpa` contract remains valid.
+- Existing traffic-light semantics remain valid.
+
+### Proposed future additions (for implementation planning)
+1. **Per-entity target CPA**
+   - Request extension (example):
+     ```json
+     {
+       "account_id": "uuid",
+       "target_cpa": 50,
+       "target_cpa_overrides": [
+         { "entity_type": "channel", "entity_key": "Google Search", "target_cpa": 80 },
+         { "entity_type": "campaign", "entity_key": "1234567890", "target_cpa": 20 }
+       ]
+     }
+     ```
+2. **Data-quality policy field**
+   - Add response field distinct from traffic light, e.g.:
+     - `data_quality_state`: `ok | low_confidence | insufficient_history`
+   - Keep traffic-light status tied to efficiency; avoid overloading `grey`.
+3. **Granularity metadata**
+   - Extend ingestion/model rows with optional identifiers:
+     - `campaign_id`, `campaign_name`
+     - `portfolio_id`, `portfolio_name` (optional)
+4. **Scenario deployment interface**
+   - Add execution endpoint, e.g.:
+     - `POST /api/scenarios/{scenario_id}/deploy`
+   - Include dry-run mode, approval token, execution status, and per-entity result log.
+
+### Backward compatibility default
+- If `target_cpa_overrides` is absent, system uses existing scalar `target_cpa` behavior.
+- Existing clients remain functional without request changes.
+- New response fields should be additive and optional.
+
+## Roadmap (Impact x Effort x Dependency)
+
+| Priority | Initiative | Impact | Effort | Depends On | Why It Matters |
+|---|---|---|---|---|---|
+| 1 | Explain 10% increment in planner UI | High UX | Low | None | Reduces "arbitrary step" confusion without math changes. |
+| 2 | Define confidence policy + `data_quality_state` | Medium-High | Medium | None | Converts advisory warnings into explicit decision policy. |
+| 3 | Add per-entity target CPA flow (UI + API + scenario engine) | High | Medium-High | 2 (recommended) | Unlocks mixed-funnel budget planning without fake uniform targets. |
+| 4 | Add OAuth connect UX + secure token lifecycle | High | High | None | Removes engineer-only setup barrier for daily marketers. |
+| 5 | Add campaign-level ingestion/display | High | Medium-High | 4 (for live sync path) | Produces decision-grade granularity for real budget moves. |
+| 6 | Add scenario deploy-to-platform with audit trail | Very High | High | 4 and 5 | Closes the last mile from recommendation to execution. |
+
+## Acceptance Criteria by Initiative
+
+### 1) Explain 10% increment in planner UI
+- Planner shows inline help text and tooltip describing stability rationale.
+- Copy appears wherever budget step controls are shown.
+- No changes to math outputs.
+
+### 2) Confidence policy + `data_quality_state`
+- System emits explicit data-quality state per entity.
+- Product decision documented: whether low confidence blocks recommendations or marks them "hold."
+- Scenario planner behavior is deterministic under low-confidence inputs.
+
+### 3) Per-entity target CPA
+- User can set different targets for at least two entities in one run.
+- Traffic lights and scenario actions recompute entity-by-entity.
+- Scalar-only requests still produce identical results to current behavior.
+
+### 4) OAuth connect flow
+- New user connects Google Ads account from UI without server env editing.
+- Tokens are stored/rotated securely and can be revoked from UI.
+- Sync can run after reconnect without manual credential repair.
+
+### 5) Campaign-level granularity
+- Same network can show multiple campaign rows with distinct curves/actions.
+- At least one campaign identifier is preserved end-to-end (ingest -> model -> UI -> scenario output).
+- Aggregated channel view remains available as optional rollup.
+
+### 6) Deploy scenario to platform
+- User can run dry-run and live deploy separately.
+- Deploy response returns per-entity success/failure plus reasons.
+- Execution log is queryable for audit and rollback support.
+
+## Validation Scenarios (Required)
+1. **Mixed-funnel targets**
+   - Given two entities with different target CPAs, classification and recommendations diverge correctly.
+2. **Low-fit model handling**
+   - Given low `R^2`, scenario engine follows policy (block or hold) and avoids unsafe "scale" actions.
+3. **Campaign granularity**
+   - Given two campaigns under one network, UI renders separate rows/curves and independent recommendations.
+4. **Last-mile deployment**
+   - Given an accepted scenario, dry-run and live deploy return auditable per-entity results.
+
+## Risks and Policy Decisions (Explicit)
+- **Semantic risk:** redefining `grey` to include low confidence breaks current meaning; prefer separate `data_quality_state`.
+- **Operational risk:** deploy actions need safeguards (approval, idempotency, partial-failure handling, rollback strategy).
+- **Security risk:** OAuth token storage/rotation/revocation must meet least-privilege and incident-response requirements.
+- **Product risk:** campaign-level detail improves actionability but may increase UI complexity and cognitive load.
+- **Migration risk:** per-entity targets require additive contracts and clear fallback to scalar mode.
+
+## Assumptions and Defaults
+- Format: Engineering memo.
+- Audience: Product and engineering collaborators.
+- Scope: Documentation rewrite only; no runtime implementation in this pass.
+- Evidence policy: unsupported metric claims were removed unless reproducible.
+- Canon preservation: keep existing 10% increment, 21-day cold-start rule, and traffic-light canon unless explicitly changed by policy decision.
