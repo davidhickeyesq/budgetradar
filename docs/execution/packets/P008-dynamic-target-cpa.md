@@ -1,11 +1,11 @@
 ---
 id: P008
 title: Per-entity target CPA contracts and UI
-state: IN_PROGRESS
-execution_status: In Progress
+state: REVIEW
+execution_status: In Review
 owner: codex
 branch: codex/p008-dynamic-target-cpa
-pr:
+pr: https://github.com/davidhickeyesq/budgetradar/pull/39
 depends_on:
   - P009
 updated_at: 2026-02-23
@@ -83,9 +83,9 @@ clients.
 
 ## Acceptance Criteria
 
-- [ ] Users can set distinct target CPAs for at least two entities in one run.
-- [ ] Traffic lights and scenario recommendations use effective per-entity targets.
-- [ ] Scalar-only clients remain fully compatible.
+- [x] Users can set distinct target CPAs for at least two entities in one run.
+- [x] Traffic lights and scenario recommendations use effective per-entity targets.
+- [x] Scalar-only clients remain fully compatible.
 
 ## Rollback Plan
 
