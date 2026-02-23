@@ -112,6 +112,42 @@ export interface ScenarioListResponse {
   scenarios: ScenarioRecordPayload[]
 }
 
+export type CsvColumnTarget =
+  | 'date'
+  | 'channel_name'
+  | 'spend'
+  | 'conversions'
+  | 'impressions'
+
+export type CsvColumnMap = Partial<Record<CsvColumnTarget, string>>
+
+export interface ImportResultPayload {
+  success: boolean
+  rows_imported: number
+  channels: string[]
+  date_range: { start: string; end: string }
+}
+
+export interface GoogleAdsCapabilitiesResponse {
+  provider_mode: 'mock' | 'real'
+  max_sync_days: number
+}
+
+export interface GoogleAdsSyncRequest {
+  account_id: string
+  customer_id: string
+  date_from: string
+  date_to: string
+}
+
+export interface GoogleAdsSyncResponse {
+  success: boolean
+  provider_mode: 'mock' | 'real'
+  rows_imported: number
+  channels: string[]
+  date_range: { start: string; end: string }
+}
+
 export async function analyzeChannels(
   accountId: string,
   targetCpa: number = 50
@@ -215,4 +251,68 @@ export async function fetchCsvTemplate(): Promise<Blob> {
   }
 
   return response.blob()
+}
+
+export async function importCsv(
+  file: File,
+  accountId: string,
+  columnMap?: CsvColumnMap
+): Promise<ImportResultPayload> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('account_id', accountId)
+  if (columnMap && Object.keys(columnMap).length > 0) {
+    formData.append('column_map', JSON.stringify(columnMap))
+  }
+
+  const response = await fetch(`${API_URL}/api/import/csv`, {
+    method: 'POST',
+    headers: apiHeaders(),
+    body: formData,
+  })
+
+  const payload = await response.json()
+  if (!response.ok) {
+    const detail = payload?.detail
+    if (typeof detail === 'string') {
+      throw new Error(detail)
+    }
+    if (detail && typeof detail === 'object' && typeof detail.message === 'string') {
+      throw new Error(detail.message)
+    }
+    throw new Error('CSV import failed')
+  }
+
+  return payload
+}
+
+export async function getGoogleAdsCapabilities(): Promise<GoogleAdsCapabilitiesResponse> {
+  const response = await fetch(`${API_URL}/api/import/google-ads/capabilities`, {
+    headers: apiHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Google Ads capabilities API error: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export async function syncGoogleAds(request: GoogleAdsSyncRequest): Promise<GoogleAdsSyncResponse> {
+  const response = await fetch(`${API_URL}/api/import/google-ads/sync`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify(request),
+  })
+
+  const payload = await response.json()
+  if (!response.ok) {
+    const detail = payload?.detail
+    if (typeof detail === 'string') {
+      throw new Error(detail)
+    }
+    throw new Error(`Google Ads sync API error: ${response.status}`)
+  }
+
+  return payload
 }

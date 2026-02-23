@@ -1,3 +1,4 @@
+import json
 import uuid
 
 from fastapi import FastAPI
@@ -66,6 +67,159 @@ def test_import_accepts_conversions_header(monkeypatch):
     assert body["rows_imported"] == 1
     assert set(body["channels"]) == {"Google Ads"}
     assert len(fake_session.added_rows) == 1
+
+
+def test_import_accepts_column_map_for_non_canonical_headers(monkeypatch):
+    fake_session = FakeSession()
+    monkeypatch.setattr(import_data, "get_session", lambda: fake_session)
+    client = _build_client()
+
+    csv_content = (
+        "dt,channel,cost,conv,impr\n"
+        "2025-01-01,Google Ads,100.00,5.00,1000\n"
+    )
+    mapping = {
+        "date": "dt",
+        "channel_name": "channel",
+        "spend": "cost",
+        "conversions": "conv",
+        "impressions": "impr",
+    }
+
+    response = client.post(
+        "/api/import/csv",
+        files={"file": ("metrics.csv", csv_content, "text/csv")},
+        data={
+            "account_id": str(uuid.uuid4()),
+            "column_map": json.dumps(mapping),
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["rows_imported"] == 1
+    assert set(body["channels"]) == {"Google Ads"}
+    assert len(fake_session.added_rows) == 1
+
+
+def test_import_rejects_column_map_with_unsupported_canonical_field(monkeypatch):
+    def fail_get_session():
+        raise AssertionError("get_session should not be called for invalid column_map")
+
+    monkeypatch.setattr(import_data, "get_session", fail_get_session)
+    client = _build_client()
+
+    csv_content = (
+        "dt,channel,cost,conv\n"
+        "2025-01-01,Google Ads,100.00,5.00\n"
+    )
+    mapping = {
+        "date": "dt",
+        "channel": "channel",
+    }
+
+    response = client.post(
+        "/api/import/csv",
+        files={"file": ("metrics.csv", csv_content, "text/csv")},
+        data={
+            "account_id": str(uuid.uuid4()),
+            "column_map": json.dumps(mapping),
+        },
+    )
+
+    assert response.status_code == 400
+    assert "unsupported canonical fields" in response.json()["detail"]
+
+
+def test_import_rejects_column_map_duplicate_source_columns(monkeypatch):
+    def fail_get_session():
+        raise AssertionError("get_session should not be called for invalid column_map")
+
+    monkeypatch.setattr(import_data, "get_session", fail_get_session)
+    client = _build_client()
+
+    csv_content = (
+        "dt,cost\n"
+        "2025-01-01,100.00\n"
+    )
+    mapping = {
+        "spend": "cost",
+        "conversions": "cost",
+    }
+
+    response = client.post(
+        "/api/import/csv",
+        files={"file": ("metrics.csv", csv_content, "text/csv")},
+        data={
+            "account_id": str(uuid.uuid4()),
+            "column_map": json.dumps(mapping),
+        },
+    )
+
+    assert response.status_code == 400
+    assert "must be unique" in response.json()["detail"]
+
+
+def test_import_rejects_column_map_with_missing_source_column(monkeypatch):
+    def fail_get_session():
+        raise AssertionError("get_session should not be called for invalid column_map")
+
+    monkeypatch.setattr(import_data, "get_session", fail_get_session)
+    client = _build_client()
+
+    csv_content = (
+        "dt,channel,cost,conv\n"
+        "2025-01-01,Google Ads,100.00,5.00\n"
+    )
+    mapping = {
+        "date": "missing_date_col",
+    }
+
+    response = client.post(
+        "/api/import/csv",
+        files={"file": ("metrics.csv", csv_content, "text/csv")},
+        data={
+            "account_id": str(uuid.uuid4()),
+            "column_map": json.dumps(mapping),
+        },
+    )
+
+    assert response.status_code == 400
+    assert "not present in CSV headers" in response.json()["detail"]
+
+
+def test_import_keeps_strict_validation_after_column_map(monkeypatch):
+    fake_session = FakeSession()
+    monkeypatch.setattr(import_data, "get_session", lambda: fake_session)
+    client = _build_client()
+
+    csv_content = (
+        "dt,channel,cost,conv\n"
+        "2025-01-01,Google Ads,$100,abc\n"
+    )
+    mapping = {
+        "date": "dt",
+        "channel_name": "channel",
+        "spend": "cost",
+        "conversions": "conv",
+    }
+
+    response = client.post(
+        "/api/import/csv",
+        files={"file": ("metrics.csv", csv_content, "text/csv")},
+        data={
+            "account_id": str(uuid.uuid4()),
+            "column_map": json.dumps(mapping),
+        },
+    )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["message"] == "CSV validation failed"
+    assert any("spend must be a valid number" in err for err in detail["errors"])
+    assert any("conversions must be a valid number" in err for err in detail["errors"])
+    assert len(fake_session.added_rows) == 0
 
 
 def test_import_rejects_legacy_revenue_header(monkeypatch):

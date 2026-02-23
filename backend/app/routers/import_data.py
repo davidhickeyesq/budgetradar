@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import date, datetime
+import json
 import math
 from typing import Any, Dict, Iterable, Optional
 import io
@@ -195,10 +196,97 @@ def validate_csv_rows(df: pd.DataFrame) -> tuple[list[DailyMetricUpsertRow], lis
     return rows, validation_errors
 
 
+def parse_column_map(
+    column_map_raw: Optional[str],
+    available_columns: Iterable[str],
+) -> dict[str, str]:
+    if column_map_raw is None:
+        return {}
+
+    raw = column_map_raw.strip()
+    if raw == "":
+        return {}
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="column_map must be valid JSON",
+        ) from exc
+
+    if not isinstance(parsed, dict):
+        raise HTTPException(
+            status_code=400,
+            detail="column_map must be a JSON object",
+        )
+
+    allowed_targets = {"date", "channel_name", "spend", "conversions", "impressions"}
+    invalid_targets = sorted(set(parsed.keys()) - allowed_targets)
+    if invalid_targets:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "column_map contains unsupported canonical fields: "
+                + ", ".join(invalid_targets)
+            ),
+        )
+
+    available_set = set(available_columns)
+    seen_sources: set[str] = set()
+    normalized: dict[str, str] = {}
+
+    for canonical, source in parsed.items():
+        if not isinstance(source, str) or source.strip() == "":
+            raise HTTPException(
+                status_code=400,
+                detail=f"column_map value for '{canonical}' must be a non-empty string",
+            )
+
+        source_column = source.strip()
+        if source_column in seen_sources:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "column_map source columns must be unique; duplicate source: "
+                    f"{source_column}"
+                ),
+            )
+
+        if source_column not in available_set:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "column_map references source column not present in CSV headers: "
+                    f"{source_column}"
+                ),
+            )
+
+        seen_sources.add(source_column)
+        normalized[canonical] = source_column
+
+    return normalized
+
+
+def apply_column_map(
+    df: pd.DataFrame,
+    column_map: dict[str, str],
+) -> pd.DataFrame:
+    if not column_map:
+        return df
+
+    mapped = df.copy()
+    for canonical, source in column_map.items():
+        mapped[canonical] = df[source]
+
+    return mapped
+
+
 @router.post("/csv")
 async def import_csv(
     file: UploadFile = File(...),
     account_id: str = Form(...),
+    column_map: Optional[str] = Form(None),
 ) -> Dict[str, Any]:
     """
     Import daily metrics from a CSV file.
@@ -211,6 +299,8 @@ async def import_csv(
     try:
         content = await file.read()
         df = pd.read_csv(io.BytesIO(content))
+        mapping = parse_column_map(column_map, df.columns)
+        df = apply_column_map(df, mapping)
 
         required_cols = {"date", "channel_name", "spend", "conversions"}
         if not required_cols.issubset(df.columns):

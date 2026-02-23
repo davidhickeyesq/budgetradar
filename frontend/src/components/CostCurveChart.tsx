@@ -21,6 +21,7 @@ interface CostCurveChartProps {
     channelName: string
     curvePoints?: CurvePoint[] | null
     currentPoint?: CurrentPoint | null
+    projectedPoint?: CurrentPoint | null
 }
 
 /**
@@ -135,6 +136,7 @@ export function CostCurveChart({
     channelName,
     curvePoints,
     currentPoint,
+    projectedPoint,
 }: CostCurveChartProps) {
     const backendData = curvePoints ?? []
     const fallbackData = modelParams ? generateCurveData(modelParams, currentSpend, targetCpa) : []
@@ -165,6 +167,16 @@ export function CostCurveChart({
     // Zone boundary values
     const greenThreshold = targetCpa * 0.9
     const redThreshold = targetCpa * 1.1
+
+    const hasProjectedPoint = Boolean(
+        projectedPoint
+        && Number.isFinite(projectedPoint.spend)
+        && Number.isFinite(projectedPoint.marginalCpa)
+        && (
+            Math.abs(projectedPoint.spend - resolvedCurrentPoint.spend) > 0.5
+            || Math.abs(projectedPoint.marginalCpa - resolvedCurrentPoint.marginalCpa) > 0.05
+        )
+    )
 
     // Unique gradient ID
     const uid = channelName.replace(/\s+/g, '-')
@@ -295,6 +307,26 @@ export function CostCurveChart({
                         stroke="#ffffff"
                         strokeWidth={3}
                     />
+
+                    {hasProjectedPoint && projectedPoint && (
+                        <>
+                            <ReferenceLine
+                                x={Math.round(projectedPoint.spend)}
+                                stroke="#0f766e"
+                                strokeDasharray="3 3"
+                                strokeWidth={1}
+                                strokeOpacity={0.7}
+                            />
+                            <ReferenceDot
+                                x={Math.round(projectedPoint.spend)}
+                                y={Math.round(projectedPoint.marginalCpa * 100) / 100}
+                                r={6}
+                                fill="#0f766e"
+                                stroke="#ffffff"
+                                strokeWidth={2}
+                            />
+                        </>
+                    )}
                 </AreaChart>
             </ResponsiveContainer>
         </div>

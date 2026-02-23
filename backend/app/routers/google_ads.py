@@ -47,6 +47,21 @@ class GoogleAdsSyncResponse(BaseModel):
     date_range: dict[str, Any]
 
 
+class GoogleAdsCapabilitiesResponse(BaseModel):
+    provider_mode: Literal["mock", "real"]
+    max_sync_days: int
+
+
+@router.get("/google-ads/capabilities", response_model=GoogleAdsCapabilitiesResponse)
+async def google_ads_capabilities():
+    settings = get_settings()
+    provider = get_google_ads_client()
+    return GoogleAdsCapabilitiesResponse(
+        provider_mode=provider.provider_mode,
+        max_sync_days=settings.google_ads_max_sync_days,
+    )
+
+
 @router.post("/google-ads/sync", response_model=GoogleAdsSyncResponse)
 async def sync_google_ads(request: GoogleAdsSyncRequest):
     settings = get_settings()
