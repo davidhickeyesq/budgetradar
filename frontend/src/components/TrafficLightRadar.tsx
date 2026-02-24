@@ -12,7 +12,6 @@ import { CostCurveChart } from '@/components/CostCurveChart'
 
 interface TrafficLightRadarProps {
   channels: ChannelMetrics[]
-  targetCpa: number
   scenarioRecommendations?: Record<string, ScenarioRecommendation>
 }
 
@@ -59,16 +58,22 @@ const dataQualityBadgeClasses: Record<DataQualityState, string> = {
 
 export function TrafficLightRadar({
   channels,
-  targetCpa,
   scenarioRecommendations = {},
 }: TrafficLightRadarProps) {
+  const hasChannels = channels.length > 0
+  const firstTarget = hasChannels ? channels[0].targetCpa : null
+  const uniformTarget = hasChannels && channels.every((channel) => channel.targetCpa === firstTarget)
+
   return (
     <div className="animate-fade-in">
       <div className="card-static p-6">
         <div className="flex items-baseline justify-between mb-1">
           <h2 className="text-lg font-semibold text-slate-900">Channel Analysis</h2>
           <span className="text-sm text-slate-500">
-            Target CPA: <span className="font-medium text-slate-700">${targetCpa.toFixed(2)}</span>
+            Target CPA:{' '}
+            <span className="font-medium text-slate-700">
+              {uniformTarget && firstTarget !== null ? `$${firstTarget.toFixed(2)}` : 'Per channel'}
+            </span>
           </span>
         </div>
         <p className="text-sm text-slate-400 mb-6">Marginal efficiency across your active channels</p>
@@ -78,7 +83,6 @@ export function TrafficLightRadar({
             <ChannelRow
               key={channel.channelName}
               channel={channel}
-              targetCpa={targetCpa}
               index={i}
               scenarioRecommendation={scenarioRecommendations[channel.channelName]}
             />
@@ -91,17 +95,17 @@ export function TrafficLightRadar({
 
 interface ChannelRowProps {
   channel: ChannelMetrics
-  targetCpa: number
   index: number
   scenarioRecommendation?: ScenarioRecommendation
 }
 
-function ChannelRow({ channel, targetCpa, index, scenarioRecommendation }: ChannelRowProps) {
+function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps) {
   const {
     channelName,
     marginalCpa,
     trafficLight,
     currentSpend,
+    targetCpa,
     rSquared,
     dataQualityState,
     dataQualityReason,

@@ -33,6 +33,12 @@ Project views programmatically. Configure/rename views in the GitHub web UI.
 - `packets/P005-scenario-recommendations.md`
 - `packets/P006-data-quality-confidence.md`
 - `packets/P007-ads-integration-ci-hardening.md`
+- `packets/P008-dynamic-target-cpa.md`
+- `packets/P009-hard-gate-low-confidence.md`
+- `packets/P010-explain-scenario-constraint.md`
+- `packets/P011-google-ads-oauth-flow.md`
+- `packets/P012-campaign-granularity.md`
+- `packets/P013-scenario-deploy-platform.md`
 - `status.yaml`: machine-readable packet status index.
 - `decisions.md`: locked decisions and rationale.
 
