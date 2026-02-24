@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { NavBar } from "@/components/NavBar";
 
 export const metadata: Metadata = {
   title: "Marginal Efficiency Radar",
@@ -25,10 +26,7 @@ export default function RootLayout({
               <h1 className="text-xl font-bold text-white tracking-tight">
                 📡 Marginal Efficiency Radar
               </h1>
-              <nav className="flex gap-1">
-                <NavLink href="/">Dashboard</NavLink>
-                <NavLink href="/import">Import Data</NavLink>
-              </nav>
+              <NavBar />
             </div>
           </header>
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -37,16 +35,5 @@ export default function RootLayout({
         </div>
       </body>
     </html>
-  );
-}
-
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <a
-      href={href}
-      className="px-4 py-1.5 rounded-full text-sm font-medium text-white/80 hover:text-white hover:bg-white/15 transition-all duration-200"
-    >
-      {children}
-    </a>
   );
 }

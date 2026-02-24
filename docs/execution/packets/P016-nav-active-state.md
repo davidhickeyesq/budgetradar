@@ -1,9 +1,9 @@
 ---
 id: P016
 title: Navigation active-state visibility
-state: TODO
-execution_status: Backlog
-owner:
+state: REVIEW
+execution_status: In Review
+owner: claude-code
 branch: codex/p016-nav-active-state
 pr:
 depends_on:
