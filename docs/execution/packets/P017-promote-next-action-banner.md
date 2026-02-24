@@ -1,9 +1,9 @@
 ---
 id: P017
 title: Promote top-level "What To Do Now" action banner
-state: TODO
-execution_status: Backlog
-owner:
+state: REVIEW
+execution_status: In Review
+owner: claude-code
 branch: codex/p017-promote-next-action-banner
 pr:
 depends_on:

@@ -823,6 +823,29 @@ export default function Home() {
         </div>
       </div>
 
+      {scenarioPlan && nextActionSummary && (
+        <div className="card-static border-l-4 border-indigo-500 p-5 animate-fade-in">
+          <div className="flex items-start gap-3">
+            <span className="text-lg mt-0.5">&#x1F3AF;</span>
+            <div>
+              <p className="text-xs uppercase tracking-[0.12em] text-indigo-500 font-semibold">
+                What To Do Now
+              </p>
+              <p className="text-base font-medium text-slate-900 mt-1">{nextActionSummary}</p>
+              <p className="text-sm text-slate-500 mt-1">
+                Projected net delta: {scenarioPlan.projectedSummary.totalSpendDelta >= 0 ? '+' : ''}
+                ${formatMoney(Math.abs(scenarioPlan.projectedSummary.totalSpendDelta), 0)}/day
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {!scenarioPlan && scenarioLoading && channels.length > 0 && (
+        <div className="card-static border-l-4 border-slate-200 p-5 animate-fade-in">
+          <p className="text-sm text-slate-400">Generating recommended plan...</p>
+        </div>
+      )}
+
       <ScenarioActionCenter
         channels={channels}
         plannerEnabled={Boolean(accountId)}
