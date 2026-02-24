@@ -73,6 +73,10 @@ The dashboard now includes a Scenario Planner card that can:
 Recommendation simulation uses fixed **10% spend steps** per channel to stay
 consistent with marginal CPA stability rules.
 
+Planner UX copy mirrors the same policy:
+`Budget moves are simulated in fixed 10% steps to preserve marginal-curve numerical stability.`
+This keeps operator messaging aligned with the AGENTS.md math canon.
+
 ### Confidence Policy (P009)
 
 Analysis and scenario payloads expose `data_quality_state`:

@@ -915,7 +915,7 @@ function ScenarioActionCenter({
         <p className="text-xs uppercase tracking-[0.12em] text-indigo-500 font-semibold">Primary Workflow</p>
         <h2 className="text-2xl font-semibold text-slate-900">Generate Recommended Plan</h2>
         <p className="text-sm text-slate-500">
-          Create operator-ready spend moves in 10% increments, review confidence, then export for campaign deployment.
+          Create operator-ready spend moves, review confidence, then export for campaign deployment.
         </p>
       </div>
 
@@ -957,7 +957,13 @@ function ScenarioActionCenter({
           </div>
 
           <div>
-            <label className="text-xs uppercase tracking-wide text-slate-500">Budget Delta (%)</label>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-xs uppercase tracking-wide text-slate-500">Budget Delta (%)</label>
+              <ScenarioStepConstraintHelp />
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Budget moves are simulated in fixed 10% steps to preserve marginal-curve numerical stability.
+            </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {BUDGET_DELTA_PRESETS.map((preset) => (
                 <button
@@ -1187,5 +1193,25 @@ function StatusRow({ dot, label, count, color }: { dot: string; label: string; c
       </div>
       <span className={`text-sm font-semibold ${color}`}>{count}</span>
     </div>
+  )
+}
+
+function ScenarioStepConstraintHelp() {
+  return (
+    <details className="group relative">
+      <summary
+        className="list-none inline-flex cursor-pointer items-center gap-1 rounded-full border border-slate-300 px-2 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200"
+        aria-label="Explain 10% scenario step constraint"
+      >
+        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-100 text-slate-600 text-[10px]">
+          i
+        </span>
+        Why fixed 10% steps?
+      </summary>
+      <p className="mt-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs leading-relaxed text-slate-600 max-w-xl">
+        Budget moves are simulated in fixed 10% steps to preserve marginal-curve numerical stability. This keeps
+        scenario recommendations consistent with the same incremental math policy used in marginal CPA analysis.
+      </p>
+    </details>
   )
 }
