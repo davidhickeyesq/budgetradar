@@ -1,8 +1,8 @@
 ---
 id: P014
 title: Editable target CPA control + persistence
-state: IN_PROGRESS
-execution_status: In Progress
+state: REVIEW
+execution_status: In Review
 owner: claude-code
 branch: codex/p014-editable-target-cpa
 pr:
