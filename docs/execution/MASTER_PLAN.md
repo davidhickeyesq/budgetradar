@@ -31,6 +31,16 @@ using:
 11. `P011` Google Ads OAuth connect flow
 12. `P012` Campaign-level granularity
 13. `P013` Scenario deploy-to-platform
+14. `P014` Editable target CPA control + persistence
+15. `P015` Empty-state onboarding for no-data accounts
+16. `P016` Navigation active-state visibility
+17. `P017` Promote top-level "What To Do Now" action banner
+18. `P018` Collapsible scenario planner + layout reorder
+19. `P019` Cost-curve help tooltip for non-technical users
+20. `P020` Save-scenario confirmation feedback
+21. `P021` CSV auto-map collapse and review toggle
+22. `P022` Dashboard structural loading skeleton
+23. `P023` Mobile responsiveness polish for planner and charts
 
 Dependency chain:
 
@@ -45,6 +55,15 @@ Dependency chain:
 - `P011` depends on `P007`
 - `P012` depends on `P011`
 - `P013` depends on `P011`, `P012`, and `P005`
+- `P015` depends on `P014`
+- `P016` depends on `P015`
+- `P017` depends on `P016`
+- `P018` depends on `P017`
+- `P019` depends on `P018`
+- `P020` depends on `P019`
+- `P021` depends on `P020`
+- `P022` depends on `P021`
+- `P023` depends on `P022`
 
 ## Branch / PR Naming
 
@@ -101,7 +120,7 @@ The following controls are now committed in-repo:
 - `Type` (single select): `Epic`, `Packet`, `Chore`
 - `Execution Status` (single select): `Backlog`, `Ready`, `In Progress`,
   `Blocked`, `In Review`, `Done`
-- `Packet ID` (text): `P001` through `P013`
+- `Packet ID` (text): `P001` through `P023`
 - `Spec Path` (text): absolute path to packet markdown
 - `Branch` (text)
 - `PR URL` (text)
@@ -125,6 +144,6 @@ web UI.
 ## Validation Checklist
 
 - Epic shows all packet sub-issues.
-- Project filter `Type=Packet` returns exactly thirteen packet items.
+- Project filter `Type=Packet` returns exactly twenty-three packet items.
 - Exactly one packet is `In Progress` at any time.
 - Packet issue, PR, and packet doc all cross-link to each other.

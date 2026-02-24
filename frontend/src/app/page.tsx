@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { TrafficLightRadar } from '@/components/TrafficLightRadar'
 import { useDefaultAccountContext } from '@/lib/account-context'
+import { useDebounce } from '@/lib/hooks'
 import {
   analyzeChannels,
   listScenarios,
@@ -24,7 +25,7 @@ import type {
   ScenarioRecommendation,
 } from '@/types'
 
-const TARGET_CPA = 50
+const DEFAULT_TARGET_CPA = 50
 const DEFAULT_BUDGET_DELTA_PERCENT = 0
 const BUDGET_DELTA_PRESETS = [-20, -10, 0, 10, 20]
 
@@ -91,10 +92,11 @@ function buildChannelTargetDraftsFromMap(
 }
 
 function buildChannelTargetOverrides(
-  channelTargets: Record<string, number>
+  channelTargets: Record<string, number>,
+  baselineTargetCpa: number
 ): TargetCpaOverridePayload[] {
   return Object.entries(channelTargets)
-    .filter(([, targetCpa]) => Math.abs(targetCpa - TARGET_CPA) > 1e-9)
+    .filter(([, targetCpa]) => Math.abs(targetCpa - baselineTargetCpa) > 1e-9)
     .map(([channelName, targetCpa]) => ({
       entity_type: 'channel',
       entity_key: channelName,
@@ -316,6 +318,13 @@ function buildNextActionSummary(plan: ScenarioPlan | null): string {
 }
 
 export default function Home() {
+  const [targetCpa, setTargetCpa] = useState<number>(() => {
+    if (typeof window === 'undefined') return DEFAULT_TARGET_CPA
+    const stored = localStorage.getItem('budgetradar_target_cpa')
+    return stored ? Number(stored) || DEFAULT_TARGET_CPA : DEFAULT_TARGET_CPA
+  })
+  const debouncedTargetCpa = useDebounce(targetCpa, 500)
+
   const [channels, setChannels] = useState<ChannelMetrics[]>([])
   const [appliedChannelTargets, setAppliedChannelTargets] = useState<Record<string, number>>({})
   const [targetCpaDrafts, setTargetCpaDrafts] = useState<Record<string, string>>({})
@@ -342,6 +351,10 @@ export default function Home() {
     loading: accountLoading,
     error: accountError,
   } = useDefaultAccountContext()
+
+  useEffect(() => {
+    localStorage.setItem('budgetradar_target_cpa', String(targetCpa))
+  }, [targetCpa])
 
   const loadSavedScenarios = useCallback(
     async (preferredId?: string) => {
@@ -378,7 +391,7 @@ export default function Home() {
     async function fetchData() {
       try {
         setAnalysisLoading(true)
-        const response = await analyzeChannels(resolvedAccountId, TARGET_CPA)
+        const response = await analyzeChannels(resolvedAccountId, debouncedTargetCpa)
         const mappedChannels = response.channels.map(mapApiToChannelMetrics)
         setChannels(mappedChannels)
         setAppliedChannelTargets(buildChannelTargetMap(mappedChannels))
@@ -393,7 +406,7 @@ export default function Home() {
     }
 
     void fetchData()
-  }, [accountId])
+  }, [accountId, debouncedTargetCpa])
 
   useEffect(() => {
     if (!accountId) {
@@ -456,10 +469,10 @@ export default function Home() {
         setScenarioLoading(true)
         const payload = await recommendScenario({
           account_id: accountId,
-          target_cpa: TARGET_CPA,
+          target_cpa: debouncedTargetCpa,
           budget_delta_percent: budgetDeltaPercentOverride ?? budgetDeltaPercent,
           locked_channels: lockedChannelsOverride ?? lockedChannels,
-          target_cpa_overrides: buildChannelTargetOverrides(appliedChannelTargets),
+          target_cpa_overrides: buildChannelTargetOverrides(appliedChannelTargets, debouncedTargetCpa),
         })
 
         const rawPlan = mapScenarioPlan(payload)
@@ -476,7 +489,7 @@ export default function Home() {
         setScenarioLoading(false)
       }
     },
-    [accountId, appliedChannelTargets, budgetDeltaPercent, channels, lockedChannels]
+    [accountId, appliedChannelTargets, budgetDeltaPercent, channels, debouncedTargetCpa, lockedChannels]
   )
 
   useEffect(() => {
@@ -525,8 +538,8 @@ export default function Home() {
       setTargetCpaApplying(true)
       const payload = await analyzeChannels(
         accountId,
-        TARGET_CPA,
-        buildChannelTargetOverrides(nextTargets)
+        debouncedTargetCpa,
+        buildChannelTargetOverrides(nextTargets, debouncedTargetCpa)
       )
       const mappedChannels = payload.channels.map(mapApiToChannelMetrics)
       setChannels(mappedChannels)
@@ -560,8 +573,8 @@ export default function Home() {
         scenarioName.trim() || scenarioPlan.scenarioName,
         serializeScenarioPlan(
           scenarioPlan,
-          TARGET_CPA,
-          buildChannelTargetOverrides(appliedChannelTargets)
+          targetCpa,
+          buildChannelTargetOverrides(appliedChannelTargets, targetCpa)
         )
       )
       setScenarioName(savedScenario.name)
@@ -706,11 +719,11 @@ export default function Home() {
     const payload = {
       exported_at: new Date().toISOString(),
       account_id: accountId,
-      target_cpa: TARGET_CPA,
+      target_cpa: targetCpa,
       scenario: serializeScenarioPlan(
         scenarioPlan,
-        TARGET_CPA,
-        buildChannelTargetOverrides(appliedChannelTargets)
+        targetCpa,
+        buildChannelTargetOverrides(appliedChannelTargets, targetCpa)
       ),
     }
 
@@ -720,7 +733,7 @@ export default function Home() {
       JSON.stringify(payload, null, 2),
       'application/json'
     )
-  }, [accountId, appliedChannelTargets, scenarioName, scenarioPlan])
+  }, [accountId, appliedChannelTargets, scenarioName, scenarioPlan, targetCpa])
 
   if (loading) {
     return (
@@ -752,6 +765,32 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
+      <div className="card-static p-4 flex items-center justify-between animate-fade-in">
+        <div>
+          <label htmlFor="target-cpa-input" className="text-xs uppercase tracking-wide text-slate-500 font-semibold">
+            Target CPA
+          </label>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Determines all traffic lights and scenario recommendations
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-500">$</span>
+          <input
+            id="target-cpa-input"
+            type="number"
+            min={1}
+            step={1}
+            value={targetCpa}
+            onChange={(e) => {
+              const parsed = Number(e.target.value)
+              setTargetCpa(Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TARGET_CPA)
+            }}
+            className="w-24 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 text-right focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          />
+        </div>
+      </div>
+
       <ScenarioActionCenter
         channels={channels}
         plannerEnabled={Boolean(accountId)}
