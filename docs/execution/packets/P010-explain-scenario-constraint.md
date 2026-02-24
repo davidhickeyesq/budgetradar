@@ -1,11 +1,11 @@
 ---
 id: P010
 title: Scenario step constraint UX clarity
-state: IN_PROGRESS
-execution_status: In Progress
+state: REVIEW
+execution_status: In Review
 owner: codex
 branch: codex/p010-explain-scenario-constraint
-pr:
+pr: https://github.com/davidhickeyesq/budgetradar/pull/41
 depends_on:
   - P005
 updated_at: 2026-02-24
