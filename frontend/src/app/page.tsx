@@ -399,7 +399,18 @@ export default function Home() {
         setTargetCpaError(null)
         setAnalysisError(null)
       } catch (err) {
-        setAnalysisError(err instanceof Error ? err.message : 'Failed to load data')
+        const message = err instanceof Error ? err.message : 'Failed to load data'
+        const isNoData =
+          message.includes('No daily_metrics')
+          || message.includes('no channels')
+          || message.includes('Not Found')
+          || message.includes('404')
+        if (isNoData) {
+          setChannels([])
+          setAnalysisError(null)
+        } else {
+          setAnalysisError(message)
+        }
       } finally {
         setAnalysisLoading(false)
       }
@@ -759,6 +770,27 @@ export default function Home() {
           Make sure the backend is running:{' '}
           <code className="bg-red-50 px-1.5 py-0.5 rounded text-xs">uvicorn app.main:app --reload</code>
         </p>
+      </div>
+    )
+  }
+
+  if (!loading && !error && channels.length === 0) {
+    return (
+      <div className="card-static p-8 text-center animate-fade-in max-w-lg mx-auto mt-12">
+        <span className="text-5xl block mb-4">&#x1F4E1;</span>
+        <h2 className="text-xl font-semibold text-slate-900">
+          Welcome to Marginal Efficiency Radar
+        </h2>
+        <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+          Import your marketing channel data to see traffic light analysis,
+          marginal CPA curves, and budget reallocation recommendations.
+        </p>
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <a href="/import" className="btn-primary inline-block">
+            Import Marketing Data
+          </a>
+          <p className="text-xs text-slate-400">CSV upload or Google Ads sync supported</p>
+        </div>
       </div>
     )
   }
