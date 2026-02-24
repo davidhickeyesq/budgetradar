@@ -4,6 +4,7 @@ from typing import Literal
 import numpy as np
 from fastapi import APIRouter, HTTPException
 
+from app.config import get_settings
 from app.models.schemas import (
     FitModelRequest,
     FitModelResponse,
@@ -22,6 +23,7 @@ from app.services.hill_function import (
     get_prior_adstock_state,
     get_traffic_light,
     get_recommendation,
+    evaluate_data_quality,
 )
 from app.services.database import (
     fetch_daily_metrics,
@@ -84,7 +86,12 @@ def compute_channel_analysis(
     if len(spend) == 0:
         return None
 
+    settings = get_settings()
     fit_result = fit_hill_model(spend, conversions)
+    data_quality = evaluate_data_quality(
+        fit_result,
+        min_confidence_r_squared=settings.min_confidence_r_squared,
+    )
     current_spend = get_current_spend(account_id, channel_name)
 
     if fit_result is None or fit_result.status != "success":
@@ -100,6 +107,8 @@ def compute_channel_analysis(
                 target_source=target_source,
                 traffic_light="grey",
                 recommendation=get_recommendation("grey"),
+                data_quality_state=data_quality.state,
+                data_quality_reason=data_quality.reason,
                 model_params=None,
                 curve_points=[],
                 current_point=None,
@@ -147,6 +156,8 @@ def compute_channel_analysis(
             target_source=target_source,
             traffic_light=traffic_light,
             recommendation=get_recommendation(traffic_light),
+            data_quality_state=data_quality.state,
+            data_quality_reason=data_quality.reason,
             model_params=params,
             curve_points=curve_points,
             current_point=current_point,
@@ -204,7 +215,12 @@ async def fit_model(request: FitModelRequest):
     if len(spend) == 0:
         raise HTTPException(status_code=404, detail="No data found for this channel")
     
+    settings = get_settings()
     fit_result = fit_hill_model(spend, conversions)
+    data_quality = evaluate_data_quality(
+        fit_result,
+        min_confidence_r_squared=settings.min_confidence_r_squared,
+    )
     
     if fit_result is None or fit_result.status != "success":
         status_msg = fit_result.status if fit_result else "fitting failed"
@@ -226,6 +242,8 @@ async def fit_model(request: FitModelRequest):
                     target_source="default",
                     traffic_light="grey",
                     recommendation=get_recommendation("grey"),
+                    data_quality_state=data_quality.state,
+                    data_quality_reason=data_quality.reason,
                     model_params=None,
                     curve_points=[],
                     current_point=None,
@@ -274,6 +292,8 @@ async def fit_model(request: FitModelRequest):
             target_source="default",
             traffic_light=traffic_light,
             recommendation=get_recommendation(traffic_light),
+            data_quality_state=data_quality.state,
+            data_quality_reason=data_quality.reason,
             model_params=params,
             curve_points=curve_points,
             current_point=current_point,

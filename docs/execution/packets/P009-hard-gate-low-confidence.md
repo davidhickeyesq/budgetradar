@@ -1,14 +1,14 @@
 ---
 id: P009
 title: Confidence policy and gating semantics
-state: TODO
-execution_status: Backlog
-owner:
+state: REVIEW
+execution_status: In Review
+owner: codex
 branch: codex/p009-hard-gate-low-confidence
-pr:
+pr: https://github.com/davidhickeyesq/budgetradar/pull/40
 depends_on:
   - P006
-updated_at: 2026-02-23
+updated_at: 2026-02-24
 issue: https://github.com/davidhickeyesq/budgetradar/issues/36
 project_item: PVTI_lAHOACofT84BPcnczgl_pNE
 epic_issue: https://github.com/davidhickeyesq/budgetradar/issues/14

@@ -47,7 +47,11 @@ def _candidate_indices(
             [
                 idx
                 for idx, channel in enumerate(channels)
-                if not channel["locked"] and channel["traffic_light"] != "grey"
+                if (
+                    not channel["locked"]
+                    and not channel["policy_hold"]
+                    and channel["traffic_light"] != "grey"
+                )
             ],
             key=lambda idx: (
                 priority.get(channels[idx]["traffic_light"], 3),
@@ -62,7 +66,11 @@ def _candidate_indices(
         [
             idx
             for idx, channel in enumerate(channels)
-            if not channel["locked"] and channel["traffic_light"] != "grey"
+            if (
+                not channel["locked"]
+                and not channel["policy_hold"]
+                and channel["traffic_light"] != "grey"
+            )
         ],
         key=lambda idx: (
             priority.get(channels[idx]["traffic_light"], 3),
@@ -124,13 +132,35 @@ async def recommend_scenario(request: ScenarioRecommendationRequest):
         raise HTTPException(status_code=404, detail="No channels found for this account")
 
     locked_channels = {channel.strip().lower() for channel in request.locked_channels}
-    increment = get_settings().marginal_increment
+    settings = get_settings()
+    increment = settings.marginal_increment
+    low_confidence_policy = settings.low_confidence_scenario_policy
 
     working_channels: list[dict] = []
     for computation in computations:
         result = computation.result
         is_locked = result.channel_name.lower() in locked_channels
-        action = get_scenario_action(result.traffic_light, locked=is_locked)
+        data_quality_state = result.data_quality_state
+        data_quality_reason = result.data_quality_reason
+        policy_hold = data_quality_state == "low_confidence"
+        is_action_blocked = policy_hold and low_confidence_policy == "block"
+        blocked_reason = (
+            (
+                "Action blocked by low-confidence policy: "
+                f"{data_quality_reason or 'model fit is below confidence threshold'}"
+            )
+            if is_action_blocked
+            else None
+        )
+
+        if is_locked:
+            action = "locked"
+        elif data_quality_state == "insufficient_history":
+            action = "insufficient_data"
+        elif policy_hold:
+            action = "maintain"
+        else:
+            action = get_scenario_action(result.traffic_light, locked=False)
 
         recommended_spend = result.current_spend
         if action == "increase":
@@ -149,6 +179,11 @@ async def recommend_scenario(request: ScenarioRecommendationRequest):
                 "fit_result": computation.fit_result,
                 "prior_adstock_state": computation.prior_adstock_state,
                 "locked": is_locked,
+                "policy_hold": policy_hold,
+                "data_quality_state": data_quality_state,
+                "data_quality_reason": data_quality_reason,
+                "is_action_blocked": is_action_blocked,
+                "blocked_reason": blocked_reason,
             }
         )
 
@@ -165,8 +200,10 @@ async def recommend_scenario(request: ScenarioRecommendationRequest):
 
         if channel["locked"]:
             final_action = "locked"
-        elif channel["traffic_light"] == "grey":
+        elif channel["data_quality_state"] == "insufficient_history":
             final_action = "insufficient_data"
+        elif channel["policy_hold"]:
+            final_action = "maintain"
         elif spend_delta > 0.01:
             final_action = "increase"
         elif spend_delta < -0.01:
@@ -190,6 +227,9 @@ async def recommend_scenario(request: ScenarioRecommendationRequest):
             marginal_cpa=channel["current_marginal_cpa"],
             action=final_action,
             locked=channel["locked"],
+            data_quality_state=channel["data_quality_state"],
+            data_quality_reason=channel["data_quality_reason"],
+            blocked_reason=channel["blocked_reason"],
         )
 
         recommendations.append(
@@ -213,6 +253,10 @@ async def recommend_scenario(request: ScenarioRecommendationRequest):
                 ),
                 traffic_light=channel["traffic_light"],
                 locked=channel["locked"],
+                data_quality_state=channel["data_quality_state"],
+                data_quality_reason=channel["data_quality_reason"],
+                is_action_blocked=channel["is_action_blocked"],
+                blocked_reason=channel["blocked_reason"],
             )
         )
 

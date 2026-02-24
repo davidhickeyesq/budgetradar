@@ -1,14 +1,14 @@
 ---
 id: P008
 title: Per-entity target CPA contracts and UI
-state: REVIEW
-execution_status: In Review
+state: DONE
+execution_status: Done
 owner: codex
 branch: codex/p008-dynamic-target-cpa
 pr: https://github.com/davidhickeyesq/budgetradar/pull/39
 depends_on:
   - P009
-updated_at: 2026-02-23
+updated_at: 2026-02-24
 issue: https://github.com/davidhickeyesq/budgetradar/issues/32
 project_item: PVTI_lAHOACofT84BPcnczgl72eU
 epic_issue: https://github.com/davidhickeyesq/budgetradar/issues/14

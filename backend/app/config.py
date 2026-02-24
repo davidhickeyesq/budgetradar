@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     beta_max: float = 3.0
     
     max_yield_multiplier: float = 3.0
+    min_confidence_r_squared: float = 0.65
+    low_confidence_scenario_policy: Literal["hold", "block"] = "hold"
 
     require_api_key: bool = False
     app_api_key: Optional[str] = None

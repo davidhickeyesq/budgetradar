@@ -1,7 +1,13 @@
 'use client'
 
-import type { ChannelMetrics, ConfidenceTier, ScenarioRecommendation, TrafficLight } from '@/types'
-import { getConfidenceLabel, getConfidenceTier, getRecommendation } from '@/types'
+import type {
+  ChannelMetrics,
+  ConfidenceTier,
+  DataQualityState,
+  ScenarioRecommendation,
+  TrafficLight,
+} from '@/types'
+import { getConfidenceLabel, getConfidenceTier, getDataQualityLabel, getRecommendation } from '@/types'
 import { CostCurveChart } from '@/components/CostCurveChart'
 
 interface TrafficLightRadarProps {
@@ -42,6 +48,12 @@ const confidenceBadgeClasses: Record<ConfidenceTier, string> = {
   medium: 'bg-amber-100 text-amber-700',
   low: 'bg-red-100 text-red-700',
   unknown: 'bg-slate-100 text-slate-600',
+}
+
+const dataQualityBadgeClasses: Record<DataQualityState, string> = {
+  ok: 'bg-emerald-50 text-emerald-700',
+  low_confidence: 'bg-amber-100 text-amber-700',
+  insufficient_history: 'bg-slate-100 text-slate-600',
 }
 
 export function TrafficLightRadar({
@@ -95,6 +107,8 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
     currentSpend,
     targetCpa,
     rSquared,
+    dataQualityState,
+    dataQualityReason,
     modelParams,
     curvePoints,
     currentPoint,
@@ -102,18 +116,23 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
 
   const hasBackendCurve = Boolean(curvePoints && curvePoints.length > 0)
   const hasLegacyCurve = Boolean(modelParams && marginalCpa !== null)
-  const confidenceTier = scenarioRecommendation?.confidenceTier ?? getConfidenceTier(rSquared)
+  const resolvedDataQualityState = scenarioRecommendation?.dataQualityState ?? dataQualityState
+  const resolvedDataQualityReason = scenarioRecommendation?.dataQualityReason ?? dataQualityReason
+  const confidenceTier = scenarioRecommendation?.confidenceTier ?? (
+    resolvedDataQualityState === 'low_confidence'
+      ? 'low'
+      : resolvedDataQualityState === 'insufficient_history'
+        ? 'unknown'
+        : getConfidenceTier(rSquared)
+  )
   const projectedPoint = scenarioRecommendation && scenarioRecommendation.projectedMarginalCpa !== null
     ? {
         spend: scenarioRecommendation.recommendedSpend,
         marginalCpa: scenarioRecommendation.projectedMarginalCpa,
       }
     : null
-  const showLowConfidenceWarning = Boolean(
-    scenarioRecommendation
-    && (scenarioRecommendation.action === 'increase' || scenarioRecommendation.action === 'decrease')
-    && (confidenceTier === 'low' || confidenceTier === 'unknown')
-  )
+  const isActionBlocked = scenarioRecommendation?.isActionBlocked ?? false
+  const blockedReason = scenarioRecommendation?.blockedReason ?? null
 
   return (
     <div
@@ -204,6 +223,9 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
           {getRecommendation(trafficLight)}
         </p>
         <div className="flex items-center gap-2">
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${dataQualityBadgeClasses[resolvedDataQualityState]}`}>
+            {getDataQualityLabel(resolvedDataQualityState)}
+          </span>
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${confidenceBadgeClasses[confidenceTier]}`}>
             {getConfidenceLabel(confidenceTier)}
           </span>
@@ -215,9 +237,24 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
         </div>
       </div>
 
-      {showLowConfidenceWarning && (
-        <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          Low confidence fit. Treat this action as directional and validate with a small spend step first.
+      {resolvedDataQualityState !== 'ok' && (
+        <div
+          className={`mt-3 rounded-md px-3 py-2 text-xs ${
+            resolvedDataQualityState === 'low_confidence'
+              ? isActionBlocked
+                ? 'border border-red-200 bg-red-50 text-red-700'
+                : 'border border-amber-200 bg-amber-50 text-amber-700'
+              : 'border border-slate-200 bg-slate-50 text-slate-600'
+          }`}
+        >
+          {isActionBlocked
+            ? blockedReason ?? 'Action blocked by low-confidence policy.'
+            : resolvedDataQualityReason
+              ?? (
+                resolvedDataQualityState === 'insufficient_history'
+                  ? 'Insufficient history (< 21 days) to generate reliable model output.'
+                  : 'Low confidence fit. Hold spend until model quality improves.'
+              )}
         </div>
       )}
     </div>

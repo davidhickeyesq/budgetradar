@@ -29,6 +29,9 @@ const DEFAULT_BUDGET_DELTA_PERCENT = 0
 const BUDGET_DELTA_PRESETS = [-20, -10, 0, 10, 20]
 
 function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
+  const dataQualityState =
+    result.data_quality_state ?? (result.traffic_light === 'grey' ? 'insufficient_history' : 'ok')
+
   return {
     channelName: result.channel_name,
     currentSpend: result.current_spend,
@@ -38,6 +41,8 @@ function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
     targetCpa: result.effective_target_cpa ?? result.target_cpa,
     trafficLight: result.traffic_light,
     rSquared: result.model_params?.r_squared ?? null,
+    dataQualityState,
+    dataQualityReason: result.data_quality_reason ?? null,
     modelParams: result.model_params ?? null,
     curvePoints: result.curve_points
       ? result.curve_points.map((point) => ({
@@ -101,6 +106,11 @@ function mapScenarioPlan(payload: ScenarioRecommendationResponse): ScenarioPlan 
   return {
     scenarioName: payload.scenario_name,
     recommendations: payload.recommendations.map((recommendation) => ({
+      dataQualityState: recommendation.data_quality_state
+        ?? (recommendation.action === 'insufficient_data' ? 'insufficient_history' : 'ok'),
+      dataQualityReason: recommendation.data_quality_reason ?? null,
+      isActionBlocked: recommendation.is_action_blocked ?? false,
+      blockedReason: recommendation.blocked_reason ?? null,
       channelName: recommendation.channel_name,
       action: recommendation.action,
       rationale: recommendation.rationale,
@@ -140,7 +150,13 @@ function applyRecommendationConfidence(
     ...plan,
     recommendations: plan.recommendations.map((recommendation) => ({
       ...recommendation,
-      confidenceTier: channelConfidence.get(recommendation.channelName) ?? 'unknown',
+      confidenceTier: (
+        recommendation.dataQualityState === 'low_confidence'
+          ? 'low'
+          : recommendation.dataQualityState === 'insufficient_history'
+            ? 'unknown'
+            : channelConfidence.get(recommendation.channelName) ?? 'unknown'
+      ),
     })),
   }
 }
@@ -167,6 +183,10 @@ function serializeScenarioPlan(
       traffic_light: recommendation.trafficLight,
       locked: recommendation.locked,
       confidence_tier: recommendation.confidenceTier,
+      data_quality_state: recommendation.dataQualityState,
+      data_quality_reason: recommendation.dataQualityReason,
+      is_action_blocked: recommendation.isActionBlocked,
+      blocked_reason: recommendation.blockedReason,
     })),
     projected_summary: {
       current_total_spend: plan.projectedSummary.currentTotalSpend,
@@ -643,6 +663,9 @@ export default function Home() {
       'current_marginal_cpa',
       'projected_marginal_cpa',
       'confidence_tier',
+      'data_quality_state',
+      'is_action_blocked',
+      'blocked_reason',
       'rationale',
     ]
 
@@ -656,6 +679,9 @@ export default function Home() {
       recommendation.currentMarginalCpa === null ? '' : recommendation.currentMarginalCpa.toFixed(2),
       recommendation.projectedMarginalCpa === null ? '' : recommendation.projectedMarginalCpa.toFixed(2),
       recommendation.confidenceTier,
+      recommendation.dataQualityState,
+      recommendation.isActionBlocked ? 'true' : 'false',
+      recommendation.blockedReason ?? '',
       recommendation.rationale,
     ])
 
@@ -1050,12 +1076,20 @@ function ScenarioActionCenter({
                     <span className={`text-xs font-semibold ${scenarioActionClass(recommendation.action)}`}>
                       {formatScenarioAction(recommendation.action)}
                     </span>
+                    {recommendation.isActionBlocked && (
+                      <span className="text-[11px] rounded-full bg-red-100 text-red-700 px-2 py-0.5">
+                        Blocked
+                      </span>
+                    )}
                     <span className="text-[11px] rounded-full bg-slate-100 text-slate-600 px-2 py-0.5">
                       {getConfidenceLabel(recommendation.confidenceTier)}
                     </span>
                   </div>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">{recommendation.rationale}</p>
+                {recommendation.isActionBlocked && recommendation.blockedReason && (
+                  <p className="text-xs text-red-600 mt-1">{recommendation.blockedReason}</p>
+                )}
                 <p className="text-xs text-slate-600 mt-1">
                   ${formatMoney(recommendation.currentSpend)}
                   {' -> '}

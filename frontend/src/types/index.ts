@@ -1,5 +1,6 @@
 export type TrafficLight = 'green' | 'yellow' | 'red' | 'grey'
 export type ConfidenceTier = 'high' | 'medium' | 'low' | 'unknown'
+export type DataQualityState = 'ok' | 'low_confidence' | 'insufficient_history'
 
 export interface HillParameters {
   alpha: number
@@ -29,6 +30,8 @@ export interface ChannelMetrics {
   targetCpa: number
   trafficLight: TrafficLight
   rSquared: number | null
+  dataQualityState: DataQualityState
+  dataQualityReason: string | null
   modelParams: HillParameters | null
   curvePoints: CurvePoint[] | null
   currentPoint: CurrentPoint | null
@@ -58,6 +61,10 @@ export interface ScenarioRecommendation {
   trafficLight: TrafficLight
   locked: boolean
   confidenceTier: ConfidenceTier
+  dataQualityState: DataQualityState
+  dataQualityReason: string | null
+  isActionBlocked: boolean
+  blockedReason: string | null
 }
 
 export interface ScenarioProjectedSummary {
@@ -113,4 +120,10 @@ export function getConfidenceLabel(tier: ConfidenceTier): string {
   if (tier === 'medium') return 'Medium confidence'
   if (tier === 'low') return 'Low confidence'
   return 'Unknown confidence'
+}
+
+export function getDataQualityLabel(state: DataQualityState): string {
+  if (state === 'ok') return 'Quality OK'
+  if (state === 'low_confidence') return 'Low Confidence'
+  return 'Insufficient History'
 }

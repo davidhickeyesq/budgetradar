@@ -37,6 +37,8 @@ export interface CurrentPointPayload {
   marginal_cpa: number
 }
 
+export type DataQualityState = 'ok' | 'low_confidence' | 'insufficient_history'
+
 export interface MarginalCpaResult {
   channel_name: string
   current_spend: number
@@ -46,6 +48,8 @@ export interface MarginalCpaResult {
   target_source?: 'default' | 'override'
   traffic_light: 'green' | 'yellow' | 'red' | 'grey'
   recommendation: string
+  data_quality_state?: DataQualityState
+  data_quality_reason?: string | null
   model_params: HillParameters | null
   curve_points?: CurvePointPayload[]
   current_point?: CurrentPointPayload | null
@@ -88,6 +92,10 @@ export interface ScenarioChannelRecommendationPayload {
   projected_marginal_cpa: number | null
   traffic_light: 'green' | 'yellow' | 'red' | 'grey'
   locked: boolean
+  data_quality_state?: DataQualityState
+  data_quality_reason?: string | null
+  is_action_blocked?: boolean
+  blocked_reason?: string | null
 }
 
 export interface ScenarioProjectedSummaryPayload {

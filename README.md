@@ -73,6 +73,20 @@ The dashboard now includes a Scenario Planner card that can:
 Recommendation simulation uses fixed **10% spend steps** per channel to stay
 consistent with marginal CPA stability rules.
 
+### Confidence Policy (P009)
+
+Analysis and scenario payloads expose `data_quality_state`:
+
+- `ok`: model fit passed confidence threshold
+- `low_confidence`: model fit available but below confidence threshold
+- `insufficient_history`: fewer than 21 non-zero spend days
+
+Traffic light remains an efficiency signal only. Scenario behavior for
+`low_confidence` channels is policy-driven:
+
+- `LOW_CONFIDENCE_SCENARIO_POLICY=hold` (default): hold spend constant
+- `LOW_CONFIDENCE_SCENARIO_POLICY=block`: hold spend and mark action blocked
+
 ### Scenario APIs
 
 - `POST /api/scenarios/recommend`
@@ -89,7 +103,15 @@ consistent with marginal CPA stability rules.
     ```json
     {
       "scenario_name": "Auto Scenario (+0.0% budget) - 2026-02-22 18:30 UTC",
-      "recommendations": [],
+      "recommendations": [
+        {
+          "channel_name": "Google Ads",
+          "action": "maintain",
+          "data_quality_state": "low_confidence",
+          "is_action_blocked": true,
+          "blocked_reason": "Action blocked by low-confidence policy: Model fit R² 0.420 is below policy threshold 0.650."
+        }
+      ],
       "projected_summary": {}
     }
     ```
@@ -211,6 +233,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for deep dive.
 | `DATABASE_URL` | postgres://... | Internal Docker network URL |
 | `MIN_DATA_DAYS` | 21 | Minimum days required for model fitting |
 | `MARGINAL_INCREMENT` | 0.10 | Spend increment (10%) for marginal calc |
+| `MIN_CONFIDENCE_R_SQUARED` | `0.65` | R² threshold below which a fit is `low_confidence` |
+| `LOW_CONFIDENCE_SCENARIO_POLICY` | `hold` | Planner policy for low-confidence channels (`hold` or `block`) |
 | `REQUIRE_API_KEY` | `false` | Enable API key guardrail for protected API routes |
 | `APP_API_KEY` | _(empty)_ | Expected `X-API-Key` value when guardrail is enabled |
 | `NEXT_PUBLIC_APP_API_KEY` | _(empty)_ | Frontend API key header for protected backend mode |

@@ -1,9 +1,12 @@
+from dataclasses import dataclass
+from typing import Literal, Optional
+
 import numpy as np
 from scipy.optimize import curve_fit
-from typing import Literal, Optional
-from dataclasses import dataclass
 
 from app.config import get_settings
+
+DataQualityState = Literal["ok", "low_confidence", "insufficient_history"]
 
 
 @dataclass
@@ -14,6 +17,49 @@ class HillFitResult:
     max_yield: float
     r_squared: float
     status: str
+
+
+@dataclass
+class DataQualityEvaluation:
+    state: DataQualityState
+    reason: Optional[str]
+
+
+def evaluate_data_quality(
+    fit_result: Optional[HillFitResult],
+    *,
+    min_confidence_r_squared: float,
+) -> DataQualityEvaluation:
+    """
+    Convert model fit status + R² into explicit policy state.
+    """
+    if fit_result is None:
+        return DataQualityEvaluation(
+            state="low_confidence",
+            reason="Model fit unavailable.",
+        )
+
+    if fit_result.status != "success":
+        if fit_result.status.startswith("insufficient_data"):
+            return DataQualityEvaluation(
+                state="insufficient_history",
+                reason=fit_result.status,
+            )
+        return DataQualityEvaluation(
+            state="low_confidence",
+            reason=fit_result.status,
+        )
+
+    if fit_result.r_squared < min_confidence_r_squared:
+        return DataQualityEvaluation(
+            state="low_confidence",
+            reason=(
+                f"Model fit R² {fit_result.r_squared:.3f} is below "
+                f"policy threshold {min_confidence_r_squared:.3f}."
+            ),
+        )
+
+    return DataQualityEvaluation(state="ok", reason=None)
 
 
 def hill_function(spend: np.ndarray, max_yield: float, beta: float, kappa: float) -> np.ndarray:
@@ -336,6 +382,9 @@ def get_scenario_rationale(
     marginal_cpa: Optional[float],
     action: str,
     locked: bool = False,
+    data_quality_state: DataQualityState = "ok",
+    data_quality_reason: Optional[str] = None,
+    blocked_reason: Optional[str] = None,
 ) -> str:
     """Explain recommendations using the 90%-110% target CPA guardrails."""
     lower_bound = 0.9 * target_cpa
@@ -343,6 +392,17 @@ def get_scenario_rationale(
 
     if locked:
         return "Channel is locked, so spend is held constant."
+
+    if data_quality_state == "insufficient_history":
+        return "Insufficient data (< 21 days) to estimate reliable marginal CPA."
+
+    if blocked_reason:
+        return blocked_reason
+
+    if data_quality_state == "low_confidence":
+        return data_quality_reason or (
+            "Model fit confidence is below policy threshold; hold spend until fit quality improves."
+        )
 
     if marginal_cpa is None or traffic_light == "grey":
         return "Insufficient data (< 21 days) to estimate reliable marginal CPA."
