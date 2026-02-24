@@ -3,6 +3,8 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+DataQualityState = Literal["ok", "low_confidence", "insufficient_history"]
+
 
 class DailyMetric(BaseModel):
     date: date
@@ -36,6 +38,8 @@ class MarginalCpaResult(BaseModel):
     target_cpa: float
     traffic_light: Literal["green", "yellow", "red", "grey"]
     recommendation: str
+    data_quality_state: DataQualityState = "ok"
+    data_quality_reason: Optional[str] = None
     model_params: Optional[HillParameters]
     curve_points: list[CurvePoint] = Field(default_factory=list)
     current_point: Optional[CurrentPoint] = None
@@ -86,6 +90,10 @@ class ScenarioChannelRecommendation(BaseModel):
     projected_marginal_cpa: Optional[float]
     traffic_light: Literal["green", "yellow", "red", "grey"]
     locked: bool = False
+    data_quality_state: DataQualityState = "ok"
+    data_quality_reason: Optional[str] = None
+    is_action_blocked: bool = False
+    blocked_reason: Optional[str] = None
 
 
 class ScenarioProjectedSummary(BaseModel):
