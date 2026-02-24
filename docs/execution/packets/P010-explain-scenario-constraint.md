@@ -1,9 +1,9 @@
 ---
 id: P010
 title: Scenario step constraint UX clarity
-state: TODO
-execution_status: Ready
-owner:
+state: IN_PROGRESS
+execution_status: In Progress
+owner: codex
 branch: codex/p010-explain-scenario-constraint
 pr:
 depends_on:
