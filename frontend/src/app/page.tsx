@@ -12,6 +12,7 @@ import {
   saveScenario,
   ScenarioRecommendationResponse,
   ScenarioRecordPayload,
+  TargetCpaOverridePayload,
 } from '@/lib/api'
 import {
   getConfidenceLabel,
@@ -34,7 +35,7 @@ function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
     totalConversions: 0,
     averageCpa: 0,
     marginalCpa: result.marginal_cpa,
-    targetCpa: result.target_cpa,
+    targetCpa: result.effective_target_cpa ?? result.target_cpa,
     trafficLight: result.traffic_light,
     rSquared: result.model_params?.r_squared ?? null,
     modelParams: result.model_params ?? null,
@@ -52,6 +53,48 @@ function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
         }
       : null,
   }
+}
+
+function formatTargetCpaInput(value: number): string {
+  return Number.isInteger(value) ? value.toString() : value.toFixed(2)
+}
+
+function buildChannelTargetMap(channels: ChannelMetrics[]): Record<string, number> {
+  return channels.reduce<Record<string, number>>((accumulator, channel) => {
+    accumulator[channel.channelName] = channel.targetCpa
+    return accumulator
+  }, {})
+}
+
+function buildChannelTargetDrafts(channels: ChannelMetrics[]): Record<string, string> {
+  return channels.reduce<Record<string, string>>((accumulator, channel) => {
+    accumulator[channel.channelName] = formatTargetCpaInput(channel.targetCpa)
+    return accumulator
+  }, {})
+}
+
+function buildChannelTargetDraftsFromMap(
+  channelTargets: Record<string, number>
+): Record<string, string> {
+  return Object.entries(channelTargets).reduce<Record<string, string>>(
+    (accumulator, [channelName, targetCpa]) => {
+      accumulator[channelName] = formatTargetCpaInput(targetCpa)
+      return accumulator
+    },
+    {}
+  )
+}
+
+function buildChannelTargetOverrides(
+  channelTargets: Record<string, number>
+): TargetCpaOverridePayload[] {
+  return Object.entries(channelTargets)
+    .filter(([, targetCpa]) => Math.abs(targetCpa - TARGET_CPA) > 1e-9)
+    .map(([channelName, targetCpa]) => ({
+      entity_type: 'channel',
+      entity_key: channelName,
+      target_cpa: targetCpa,
+    }))
 }
 
 function mapScenarioPlan(payload: ScenarioRecommendationResponse): ScenarioPlan {
@@ -102,9 +145,15 @@ function applyRecommendationConfidence(
   }
 }
 
-function serializeScenarioPlan(plan: ScenarioPlan): Record<string, unknown> {
+function serializeScenarioPlan(
+  plan: ScenarioPlan,
+  targetCpa: number,
+  targetCpaOverrides: TargetCpaOverridePayload[]
+): Record<string, unknown> {
   return {
     scenario_name: plan.scenarioName,
+    target_cpa: targetCpa,
+    target_cpa_overrides: targetCpaOverrides,
     recommendations: plan.recommendations.map((recommendation) => ({
       channel_name: recommendation.channelName,
       action: recommendation.action,
@@ -152,6 +201,44 @@ function readScenarioPlan(
   } catch {
     return null
   }
+}
+
+function readScenarioTargetOverrides(
+  budgetAllocation: Record<string, unknown>
+): TargetCpaOverridePayload[] {
+  const rawOverrides = budgetAllocation.target_cpa_overrides
+  if (!Array.isArray(rawOverrides)) {
+    return []
+  }
+
+  const overrides: TargetCpaOverridePayload[] = []
+  for (const override of rawOverrides) {
+    if (typeof override !== 'object' || override === null) {
+      continue
+    }
+
+    const candidate = override as {
+      entity_type?: string
+      entity_key?: unknown
+      target_cpa?: unknown
+    }
+    if (
+      (candidate.entity_type === 'channel' || candidate.entity_type === 'campaign')
+      && typeof candidate.entity_key === 'string'
+      && candidate.entity_key.trim().length > 0
+      && typeof candidate.target_cpa === 'number'
+      && Number.isFinite(candidate.target_cpa)
+      && candidate.target_cpa > 0
+    ) {
+      overrides.push({
+        entity_type: candidate.entity_type,
+        entity_key: candidate.entity_key,
+        target_cpa: candidate.target_cpa,
+      })
+    }
+  }
+
+  return overrides
 }
 
 function formatMoney(value: number, digits = 2): string {
@@ -210,6 +297,10 @@ function buildNextActionSummary(plan: ScenarioPlan | null): string {
 
 export default function Home() {
   const [channels, setChannels] = useState<ChannelMetrics[]>([])
+  const [appliedChannelTargets, setAppliedChannelTargets] = useState<Record<string, number>>({})
+  const [targetCpaDrafts, setTargetCpaDrafts] = useState<Record<string, string>>({})
+  const [targetCpaApplying, setTargetCpaApplying] = useState(false)
+  const [targetCpaError, setTargetCpaError] = useState<string | null>(null)
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
 
@@ -255,6 +346,9 @@ export default function Home() {
   useEffect(() => {
     if (!accountId) {
       setChannels([])
+      setAppliedChannelTargets({})
+      setTargetCpaDrafts({})
+      setTargetCpaError(null)
       setAnalysisError(null)
       return
     }
@@ -265,7 +359,11 @@ export default function Home() {
       try {
         setAnalysisLoading(true)
         const response = await analyzeChannels(resolvedAccountId, TARGET_CPA)
-        setChannels(response.channels.map(mapApiToChannelMetrics))
+        const mappedChannels = response.channels.map(mapApiToChannelMetrics)
+        setChannels(mappedChannels)
+        setAppliedChannelTargets(buildChannelTargetMap(mappedChannels))
+        setTargetCpaDrafts(buildChannelTargetDrafts(mappedChannels))
+        setTargetCpaError(null)
         setAnalysisError(null)
       } catch (err) {
         setAnalysisError(err instanceof Error ? err.message : 'Failed to load data')
@@ -279,6 +377,9 @@ export default function Home() {
 
   useEffect(() => {
     if (!accountId) {
+      setAppliedChannelTargets({})
+      setTargetCpaDrafts({})
+      setTargetCpaError(null)
       setSavedScenarios([])
       setScenarioPlan(null)
       setSelectedScenarioId('')
@@ -301,6 +402,20 @@ export default function Home() {
   useEffect(() => {
     const activeChannels = new Set(channels.map((channel) => channel.channelName))
     setLockedChannels((previous) => previous.filter((channelName) => activeChannels.has(channelName)))
+    setAppliedChannelTargets((previous) => {
+      const next: Record<string, number> = {}
+      for (const channel of channels) {
+        next[channel.channelName] = previous[channel.channelName] ?? channel.targetCpa
+      }
+      return next
+    })
+    setTargetCpaDrafts((previous) => {
+      const next: Record<string, string> = {}
+      for (const channel of channels) {
+        next[channel.channelName] = previous[channel.channelName] ?? formatTargetCpaInput(channel.targetCpa)
+      }
+      return next
+    })
   }, [channels])
 
   const runScenarioGeneration = useCallback(
@@ -324,6 +439,7 @@ export default function Home() {
           target_cpa: TARGET_CPA,
           budget_delta_percent: budgetDeltaPercentOverride ?? budgetDeltaPercent,
           locked_channels: lockedChannelsOverride ?? lockedChannels,
+          target_cpa_overrides: buildChannelTargetOverrides(appliedChannelTargets),
         })
 
         const rawPlan = mapScenarioPlan(payload)
@@ -340,7 +456,7 @@ export default function Home() {
         setScenarioLoading(false)
       }
     },
-    [accountId, budgetDeltaPercent, channels, lockedChannels]
+    [accountId, appliedChannelTargets, budgetDeltaPercent, channels, lockedChannels]
   )
 
   useEffect(() => {
@@ -361,6 +477,53 @@ export default function Home() {
     })
   }, [accountId, channels.length, runScenarioGeneration])
 
+  function handleChannelTargetDraftChange(channelName: string, value: string) {
+    setTargetCpaError(null)
+    setTargetCpaDrafts((previous) => ({
+      ...previous,
+      [channelName]: value,
+    }))
+  }
+
+  async function handleApplyTargetCpas() {
+    if (!accountId) {
+      return
+    }
+
+    const nextTargets: Record<string, number> = {}
+    for (const channel of channels) {
+      const rawValue = targetCpaDrafts[channel.channelName] ?? formatTargetCpaInput(channel.targetCpa)
+      const parsedValue = Number(rawValue)
+      if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+        setTargetCpaError(`Enter a positive target CPA for ${channel.channelName}.`)
+        return
+      }
+      nextTargets[channel.channelName] = parsedValue
+    }
+
+    try {
+      setTargetCpaApplying(true)
+      const payload = await analyzeChannels(
+        accountId,
+        TARGET_CPA,
+        buildChannelTargetOverrides(nextTargets)
+      )
+      const mappedChannels = payload.channels.map(mapApiToChannelMetrics)
+      setChannels(mappedChannels)
+      setAppliedChannelTargets(buildChannelTargetMap(mappedChannels))
+      setTargetCpaDrafts(buildChannelTargetDrafts(mappedChannels))
+      setScenarioPlan(null)
+      setScenarioName('')
+      setScenarioError(null)
+      setAnalysisError(null)
+      setTargetCpaError(null)
+    } catch (err) {
+      setAnalysisError(err instanceof Error ? err.message : 'Failed to apply target CPA values')
+    } finally {
+      setTargetCpaApplying(false)
+    }
+  }
+
   async function handleGenerateScenario() {
     await runScenarioGeneration()
   }
@@ -375,7 +538,11 @@ export default function Home() {
       const savedScenario = await saveScenario(
         accountId,
         scenarioName.trim() || scenarioPlan.scenarioName,
-        serializeScenarioPlan(scenarioPlan)
+        serializeScenarioPlan(
+          scenarioPlan,
+          TARGET_CPA,
+          buildChannelTargetOverrides(appliedChannelTargets)
+        )
       )
       setScenarioName(savedScenario.name)
       await loadSavedScenarios(savedScenario.id)
@@ -417,6 +584,25 @@ export default function Home() {
     const enrichedPlan = applyRecommendationConfidence(rawPlan, channels)
     setScenarioPlan(enrichedPlan)
     setScenarioName(selectedScenario.name)
+    const scenarioOverrides = readScenarioTargetOverrides(selectedScenario.budget_allocation)
+    if (channels.length > 0) {
+      const nextTargets = buildChannelTargetMap(channels)
+      const channelLookup = new Map(
+        channels.map((channel) => [channel.channelName.toLowerCase(), channel.channelName] as const)
+      )
+      for (const override of scenarioOverrides) {
+        if (override.entity_type !== 'channel') {
+          continue
+        }
+        const matchingChannel = channelLookup.get(override.entity_key.trim().toLowerCase())
+        if (!matchingChannel) {
+          continue
+        }
+        nextTargets[matchingChannel] = override.target_cpa
+      }
+      setAppliedChannelTargets(nextTargets)
+      setTargetCpaDrafts(buildChannelTargetDraftsFromMap(nextTargets))
+    }
     setScenarioError(null)
   }
 
@@ -495,7 +681,11 @@ export default function Home() {
       exported_at: new Date().toISOString(),
       account_id: accountId,
       target_cpa: TARGET_CPA,
-      scenario: serializeScenarioPlan(scenarioPlan),
+      scenario: serializeScenarioPlan(
+        scenarioPlan,
+        TARGET_CPA,
+        buildChannelTargetOverrides(appliedChannelTargets)
+      ),
     }
 
     const scenarioLabel = scenarioName.trim() || scenarioPlan.scenarioName
@@ -504,7 +694,7 @@ export default function Home() {
       JSON.stringify(payload, null, 2),
       'application/json'
     )
-  }, [accountId, scenarioName, scenarioPlan])
+  }, [accountId, appliedChannelTargets, scenarioName, scenarioPlan])
 
   if (loading) {
     return (
@@ -539,6 +729,11 @@ export default function Home() {
       <ScenarioActionCenter
         channels={channels}
         plannerEnabled={Boolean(accountId)}
+        targetCpaDrafts={targetCpaDrafts}
+        onTargetCpaDraftChange={handleChannelTargetDraftChange}
+        onApplyTargetCpas={handleApplyTargetCpas}
+        targetCpaApplying={targetCpaApplying}
+        targetCpaError={targetCpaError}
         budgetDeltaPercent={budgetDeltaPercent}
         onBudgetDeltaPercentChange={setBudgetDeltaPercent}
         lockedChannels={lockedChannels}
@@ -564,7 +759,6 @@ export default function Home() {
         <div className="lg:col-span-2">
           <TrafficLightRadar
             channels={channels}
-            targetCpa={TARGET_CPA}
             scenarioRecommendations={scenarioRecommendationLookup}
           />
         </div>
@@ -635,6 +829,11 @@ function SummaryCard({
 interface ScenarioActionCenterProps {
   channels: ChannelMetrics[]
   plannerEnabled: boolean
+  targetCpaDrafts: Record<string, string>
+  onTargetCpaDraftChange: (channelName: string, value: string) => void
+  onApplyTargetCpas: () => void | Promise<void>
+  targetCpaApplying: boolean
+  targetCpaError: string | null
   budgetDeltaPercent: number
   onBudgetDeltaPercentChange: (value: number) => void
   lockedChannels: string[]
@@ -659,6 +858,11 @@ interface ScenarioActionCenterProps {
 function ScenarioActionCenter({
   channels,
   plannerEnabled,
+  targetCpaDrafts,
+  onTargetCpaDraftChange,
+  onApplyTargetCpas,
+  targetCpaApplying,
+  targetCpaError,
   budgetDeltaPercent,
   onBudgetDeltaPercentChange,
   lockedChannels,
@@ -691,6 +895,41 @@ function ScenarioActionCenter({
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="space-y-3 xl:col-span-2">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Channel Target CPA</p>
+              <button
+                className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => void onApplyTargetCpas()}
+                disabled={!plannerEnabled || targetCpaApplying || channels.length === 0}
+                type="button"
+              >
+                {targetCpaApplying ? 'Applying...' : 'Apply Targets'}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {channels.length === 0 && <p className="text-xs text-slate-400">No channels available</p>}
+              {channels.map((channel) => (
+                <label key={channel.channelName} className="grid grid-cols-[1fr_auto] items-center gap-2 text-sm text-slate-700">
+                  <span>{channel.channelName}</span>
+                  <input
+                    type="number"
+                    min={0.01}
+                    step={0.01}
+                    value={targetCpaDrafts[channel.channelName] ?? ''}
+                    onChange={(event) => onTargetCpaDraftChange(channel.channelName, event.target.value)}
+                    className="w-28 rounded-md border border-slate-300 px-2 py-1 text-right text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  />
+                </label>
+              ))}
+            </div>
+            {targetCpaError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {targetCpaError}
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="text-xs uppercase tracking-wide text-slate-500">Budget Delta (%)</label>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -742,7 +981,7 @@ function ScenarioActionCenter({
             <button
               className="btn-primary"
               onClick={() => void onGenerateScenario()}
-              disabled={!plannerEnabled || scenarioLoading}
+              disabled={!plannerEnabled || scenarioLoading || targetCpaApplying}
               type="button"
             >
               {scenarioLoading ? 'Generating...' : 'Generate Recommended Plan'}
