@@ -1,8 +1,8 @@
 ---
 id: P015
 title: Empty-state onboarding for no-data accounts
-state: IN_PROGRESS
-execution_status: In Progress
+state: REVIEW
+execution_status: In Review
 owner: claude-code
 branch: codex/p015-empty-state-onboarding
 pr:
