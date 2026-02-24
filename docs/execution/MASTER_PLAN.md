@@ -23,7 +23,7 @@ using:
 3. `P003` Ads-ops readiness foundation
 4. `P004` Account context completion
 5. `P005` Scenario recommendations
-6. `P006` Data quality and confidence guardrails
+6. `P006` Input, docs, and runtime hardening bundle
 7. `P007` Ads integration and CI hardening
 8. `P008` Per-entity target CPA contracts and UI
 9. `P009` Confidence policy and gating semantics

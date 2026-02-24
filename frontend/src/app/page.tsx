@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { TrafficLightRadar } from '@/components/TrafficLightRadar'
 import { useDefaultAccountContext } from '@/lib/account-context'
@@ -14,10 +14,19 @@ import {
   ScenarioRecordPayload,
   TargetCpaOverridePayload,
 } from '@/lib/api'
-import type { ChannelMetrics, ScenarioPlan, ScenarioRecommendation } from '@/types'
+import {
+  getConfidenceLabel,
+  getConfidenceTier,
+} from '@/types'
+import type {
+  ChannelMetrics,
+  ScenarioPlan,
+  ScenarioRecommendation,
+} from '@/types'
 
-const DEFAULT_TARGET_CPA = 50
+const TARGET_CPA = 50
 const DEFAULT_BUDGET_DELTA_PERCENT = 0
+const BUDGET_DELTA_PRESETS = [-20, -10, 0, 10, 20]
 
 function mapApiToChannelMetrics(result: MarginalCpaResult): ChannelMetrics {
   return {
@@ -80,7 +89,7 @@ function buildChannelTargetOverrides(
   channelTargets: Record<string, number>
 ): TargetCpaOverridePayload[] {
   return Object.entries(channelTargets)
-    .filter(([, targetCpa]) => Math.abs(targetCpa - DEFAULT_TARGET_CPA) > 1e-9)
+    .filter(([, targetCpa]) => Math.abs(targetCpa - TARGET_CPA) > 1e-9)
     .map(([channelName, targetCpa]) => ({
       entity_type: 'channel',
       entity_key: channelName,
@@ -103,6 +112,7 @@ function mapScenarioPlan(payload: ScenarioRecommendationResponse): ScenarioPlan 
       projectedMarginalCpa: recommendation.projected_marginal_cpa,
       trafficLight: recommendation.traffic_light,
       locked: recommendation.locked,
+      confidenceTier: 'unknown',
     })),
     projectedSummary: {
       currentTotalSpend: payload.projected_summary.current_total_spend,
@@ -115,6 +125,23 @@ function mapScenarioPlan(payload: ScenarioRecommendationResponse): ScenarioPlan 
       channelsLocked: payload.projected_summary.channels_locked,
       channelsInsufficientData: payload.projected_summary.channels_insufficient_data,
     },
+  }
+}
+
+function applyRecommendationConfidence(
+  plan: ScenarioPlan,
+  channels: ChannelMetrics[]
+): ScenarioPlan {
+  const channelConfidence = new Map(
+    channels.map((channel) => [channel.channelName, getConfidenceTier(channel.rSquared)])
+  )
+
+  return {
+    ...plan,
+    recommendations: plan.recommendations.map((recommendation) => ({
+      ...recommendation,
+      confidenceTier: channelConfidence.get(recommendation.channelName) ?? 'unknown',
+    })),
   }
 }
 
@@ -139,6 +166,7 @@ function serializeScenarioPlan(
       projected_marginal_cpa: recommendation.projectedMarginalCpa,
       traffic_light: recommendation.trafficLight,
       locked: recommendation.locked,
+      confidence_tier: recommendation.confidenceTier,
     })),
     projected_summary: {
       current_total_spend: plan.projectedSummary.currentTotalSpend,
@@ -213,6 +241,60 @@ function readScenarioTargetOverrides(
   return overrides
 }
 
+function formatMoney(value: number, digits = 2): string {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })
+}
+
+function sanitizeFileName(value: string): string {
+  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')
+  return normalized.length > 0 ? normalized.replace(/^-+|-+$/g, '') : 'scenario-plan'
+}
+
+function downloadFile(filename: string, content: string, mimeType: string): void {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+
+function escapeCsv(value: string | number | null): string {
+  if (value === null) {
+    return ''
+  }
+
+  const asString = String(value)
+  if (asString.includes(',') || asString.includes('"') || asString.includes('\n')) {
+    return `"${asString.replace(/"/g, '""')}"`
+  }
+  return asString
+}
+
+function buildNextActionSummary(plan: ScenarioPlan | null): string {
+  if (!plan) {
+    return 'Generate a recommended plan to see prioritized actions.'
+  }
+
+  const actionable = plan.recommendations
+    .filter((recommendation) => recommendation.action === 'increase' || recommendation.action === 'decrease')
+    .sort((a, b) => Math.abs(b.spendDelta) - Math.abs(a.spendDelta))
+
+  if (actionable.length === 0) {
+    return 'No high-confidence spend move is required now. Maintain allocations and monitor tomorrow.'
+  }
+
+  const topMove = actionable[0]
+  const verb = topMove.action === 'increase' ? 'Increase' : 'Decrease'
+  return `${verb} ${topMove.channelName} by $${formatMoney(Math.abs(topMove.spendDelta))}/day first (${topMove.spendDeltaPercent.toFixed(1)}%).`
+}
+
 export default function Home() {
   const [channels, setChannels] = useState<ChannelMetrics[]>([])
   const [appliedChannelTargets, setAppliedChannelTargets] = useState<Record<string, number>>({})
@@ -231,6 +313,8 @@ export default function Home() {
   const [scenarioName, setScenarioName] = useState('')
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRecordPayload[]>([])
   const [selectedScenarioId, setSelectedScenarioId] = useState('')
+
+  const autoGeneratedScenarioAccount = useRef<string | null>(null)
 
   const {
     accountId,
@@ -261,14 +345,20 @@ export default function Home() {
 
   useEffect(() => {
     if (!accountId) {
+      setChannels([])
+      setAppliedChannelTargets({})
+      setTargetCpaDrafts({})
+      setTargetCpaError(null)
+      setAnalysisError(null)
       return
     }
+
     const resolvedAccountId: string = accountId
 
     async function fetchData() {
       try {
         setAnalysisLoading(true)
-        const response = await analyzeChannels(resolvedAccountId, DEFAULT_TARGET_CPA)
+        const response = await analyzeChannels(resolvedAccountId, TARGET_CPA)
         const mappedChannels = response.channels.map(mapApiToChannelMetrics)
         setChannels(mappedChannels)
         setAppliedChannelTargets(buildChannelTargetMap(mappedChannels))
@@ -287,16 +377,25 @@ export default function Home() {
 
   useEffect(() => {
     if (!accountId) {
-      setChannels([])
       setAppliedChannelTargets({})
       setTargetCpaDrafts({})
       setTargetCpaError(null)
       setSavedScenarios([])
       setScenarioPlan(null)
       setSelectedScenarioId('')
+      setScenarioName('')
+      setScenarioError(null)
+      setBudgetDeltaPercent(DEFAULT_BUDGET_DELTA_PERCENT)
+      setLockedChannels([])
+      autoGeneratedScenarioAccount.current = null
       return
     }
 
+    setScenarioPlan(null)
+    setSelectedScenarioId('')
+    setScenarioName('')
+    setScenarioError(null)
+    autoGeneratedScenarioAccount.current = null
     void loadSavedScenarios()
   }, [accountId, loadSavedScenarios])
 
@@ -319,19 +418,64 @@ export default function Home() {
     })
   }, [channels])
 
-  const scenarioRecommendationLookup = useMemo<Record<string, ScenarioRecommendation>>(() => {
-    if (!scenarioPlan) {
-      return {}
+  const runScenarioGeneration = useCallback(
+    async ({
+      budgetDeltaPercentOverride,
+      lockedChannelsOverride,
+      suppressErrors = false,
+    }: {
+      budgetDeltaPercentOverride?: number
+      lockedChannelsOverride?: string[]
+      suppressErrors?: boolean
+    } = {}) => {
+      if (!accountId) {
+        return
+      }
+
+      try {
+        setScenarioLoading(true)
+        const payload = await recommendScenario({
+          account_id: accountId,
+          target_cpa: TARGET_CPA,
+          budget_delta_percent: budgetDeltaPercentOverride ?? budgetDeltaPercent,
+          locked_channels: lockedChannelsOverride ?? lockedChannels,
+          target_cpa_overrides: buildChannelTargetOverrides(appliedChannelTargets),
+        })
+
+        const rawPlan = mapScenarioPlan(payload)
+        const enrichedPlan = applyRecommendationConfidence(rawPlan, channels)
+        setScenarioPlan(enrichedPlan)
+        setScenarioName(enrichedPlan.scenarioName)
+        setSelectedScenarioId('')
+        setScenarioError(null)
+      } catch (err) {
+        if (!suppressErrors) {
+          setScenarioError(err instanceof Error ? err.message : 'Failed to generate scenario')
+        }
+      } finally {
+        setScenarioLoading(false)
+      }
+    },
+    [accountId, appliedChannelTargets, budgetDeltaPercent, channels, lockedChannels]
+  )
+
+  useEffect(() => {
+    if (!accountId || channels.length === 0) {
+      return
     }
 
-    return scenarioPlan.recommendations.reduce<Record<string, ScenarioRecommendation>>(
-      (accumulator, recommendation) => {
-        accumulator[recommendation.channelName] = recommendation
-        return accumulator
-      },
-      {}
-    )
-  }, [scenarioPlan])
+    if (autoGeneratedScenarioAccount.current === accountId) {
+      return
+    }
+
+    autoGeneratedScenarioAccount.current = accountId
+    setBudgetDeltaPercent(DEFAULT_BUDGET_DELTA_PERCENT)
+    void runScenarioGeneration({
+      budgetDeltaPercentOverride: DEFAULT_BUDGET_DELTA_PERCENT,
+      lockedChannelsOverride: [],
+      suppressErrors: true,
+    })
+  }, [accountId, channels.length, runScenarioGeneration])
 
   function handleChannelTargetDraftChange(channelName: string, value: string) {
     setTargetCpaError(null)
@@ -361,7 +505,7 @@ export default function Home() {
       setTargetCpaApplying(true)
       const payload = await analyzeChannels(
         accountId,
-        DEFAULT_TARGET_CPA,
+        TARGET_CPA,
         buildChannelTargetOverrides(nextTargets)
       )
       const mappedChannels = payload.channels.map(mapApiToChannelMetrics)
@@ -381,30 +525,7 @@ export default function Home() {
   }
 
   async function handleGenerateScenario() {
-    if (!accountId) {
-      return
-    }
-
-    try {
-      setScenarioLoading(true)
-      const payload = await recommendScenario({
-        account_id: accountId,
-        target_cpa: DEFAULT_TARGET_CPA,
-        budget_delta_percent: budgetDeltaPercent,
-        locked_channels: lockedChannels,
-        target_cpa_overrides: buildChannelTargetOverrides(appliedChannelTargets),
-      })
-
-      const plan = mapScenarioPlan(payload)
-      setScenarioPlan(plan)
-      setScenarioName(plan.scenarioName)
-      setSelectedScenarioId('')
-      setScenarioError(null)
-    } catch (err) {
-      setScenarioError(err instanceof Error ? err.message : 'Failed to generate scenario')
-    } finally {
-      setScenarioLoading(false)
-    }
+    await runScenarioGeneration()
   }
 
   async function handleSaveScenario() {
@@ -419,11 +540,10 @@ export default function Home() {
         scenarioName.trim() || scenarioPlan.scenarioName,
         serializeScenarioPlan(
           scenarioPlan,
-          DEFAULT_TARGET_CPA,
+          TARGET_CPA,
           buildChannelTargetOverrides(appliedChannelTargets)
         )
       )
-
       setScenarioName(savedScenario.name)
       await loadSavedScenarios(savedScenario.id)
       setScenarioError(null)
@@ -455,13 +575,14 @@ export default function Home() {
       return
     }
 
-    const plan = readScenarioPlan(selectedScenario.budget_allocation)
-    if (!plan) {
+    const rawPlan = readScenarioPlan(selectedScenario.budget_allocation)
+    if (!rawPlan) {
       setScenarioError('Saved scenario payload is incompatible with planner view')
       return
     }
 
-    setScenarioPlan(plan)
+    const enrichedPlan = applyRecommendationConfidence(rawPlan, channels)
+    setScenarioPlan(enrichedPlan)
     setScenarioName(selectedScenario.name)
     const scenarioOverrides = readScenarioTargetOverrides(selectedScenario.budget_allocation)
     if (channels.length > 0) {
@@ -485,8 +606,95 @@ export default function Home() {
     setScenarioError(null)
   }
 
+  const scenarioRecommendationLookup = useMemo<Record<string, ScenarioRecommendation>>(() => {
+    if (!scenarioPlan) {
+      return {}
+    }
+
+    return scenarioPlan.recommendations.reduce<Record<string, ScenarioRecommendation>>(
+      (accumulator, recommendation) => {
+        accumulator[recommendation.channelName] = recommendation
+        return accumulator
+      },
+      {}
+    )
+  }, [scenarioPlan])
+
+  const nextActionSummary = useMemo(
+    () => buildNextActionSummary(scenarioPlan),
+    [scenarioPlan]
+  )
+
   const loading = accountLoading || analysisLoading
   const error = accountError ?? analysisError
+
+  const handleExportCsv = useCallback(() => {
+    if (!scenarioPlan) {
+      return
+    }
+
+    const headers = [
+      'channel_name',
+      'action',
+      'current_spend',
+      'recommended_spend',
+      'spend_delta',
+      'spend_delta_percent',
+      'current_marginal_cpa',
+      'projected_marginal_cpa',
+      'confidence_tier',
+      'rationale',
+    ]
+
+    const rows = scenarioPlan.recommendations.map((recommendation) => [
+      recommendation.channelName,
+      recommendation.action,
+      recommendation.currentSpend.toFixed(2),
+      recommendation.recommendedSpend.toFixed(2),
+      recommendation.spendDelta.toFixed(2),
+      recommendation.spendDeltaPercent.toFixed(1),
+      recommendation.currentMarginalCpa === null ? '' : recommendation.currentMarginalCpa.toFixed(2),
+      recommendation.projectedMarginalCpa === null ? '' : recommendation.projectedMarginalCpa.toFixed(2),
+      recommendation.confidenceTier,
+      recommendation.rationale,
+    ])
+
+    const csv = [
+      headers.join(','),
+      ...rows.map((row) => row.map((value) => escapeCsv(value)).join(',')),
+    ].join('\n')
+
+    const scenarioLabel = scenarioName.trim() || scenarioPlan.scenarioName
+    downloadFile(
+      `${sanitizeFileName(scenarioLabel)}.csv`,
+      csv,
+      'text/csv;charset=utf-8'
+    )
+  }, [scenarioName, scenarioPlan])
+
+  const handleExportJson = useCallback(() => {
+    if (!scenarioPlan) {
+      return
+    }
+
+    const payload = {
+      exported_at: new Date().toISOString(),
+      account_id: accountId,
+      target_cpa: TARGET_CPA,
+      scenario: serializeScenarioPlan(
+        scenarioPlan,
+        TARGET_CPA,
+        buildChannelTargetOverrides(appliedChannelTargets)
+      ),
+    }
+
+    const scenarioLabel = scenarioName.trim() || scenarioPlan.scenarioName
+    downloadFile(
+      `${sanitizeFileName(scenarioLabel)}.json`,
+      JSON.stringify(payload, null, 2),
+      'application/json'
+    )
+  }, [accountId, appliedChannelTargets, scenarioName, scenarioPlan])
 
   if (loading) {
     return (
@@ -518,6 +726,35 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
+      <ScenarioActionCenter
+        channels={channels}
+        plannerEnabled={Boolean(accountId)}
+        targetCpaDrafts={targetCpaDrafts}
+        onTargetCpaDraftChange={handleChannelTargetDraftChange}
+        onApplyTargetCpas={handleApplyTargetCpas}
+        targetCpaApplying={targetCpaApplying}
+        targetCpaError={targetCpaError}
+        budgetDeltaPercent={budgetDeltaPercent}
+        onBudgetDeltaPercentChange={setBudgetDeltaPercent}
+        lockedChannels={lockedChannels}
+        onToggleLockedChannel={handleToggleLockedChannel}
+        onGenerateScenario={handleGenerateScenario}
+        onRefreshSavedScenarios={() => void loadSavedScenarios()}
+        scenarioLoading={scenarioLoading}
+        scenarioError={scenarioError}
+        scenarioPlan={scenarioPlan}
+        scenarioName={scenarioName}
+        onScenarioNameChange={setScenarioName}
+        onSaveScenario={handleSaveScenario}
+        scenarioSaving={scenarioSaving}
+        savedScenarios={savedScenarios}
+        selectedScenarioId={selectedScenarioId}
+        onSelectScenario={handleSelectScenario}
+        nextActionSummary={nextActionSummary}
+        onExportCsv={handleExportCsv}
+        onExportJson={handleExportJson}
+      />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <TrafficLightRadar
@@ -528,31 +765,6 @@ export default function Home() {
 
         <div className="space-y-6 animate-fade-in-delay-1">
           <SummaryCard channels={channels} accountName={accountName} accountId={accountId} />
-          <ScenarioPlannerCard
-            channels={channels}
-            plannerEnabled={Boolean(accountId)}
-            targetCpaDrafts={targetCpaDrafts}
-            onTargetCpaDraftChange={handleChannelTargetDraftChange}
-            onApplyTargetCpas={handleApplyTargetCpas}
-            targetCpaApplying={targetCpaApplying}
-            targetCpaError={targetCpaError}
-            budgetDeltaPercent={budgetDeltaPercent}
-            onBudgetDeltaPercentChange={setBudgetDeltaPercent}
-            lockedChannels={lockedChannels}
-            onToggleLockedChannel={handleToggleLockedChannel}
-            onGenerateScenario={handleGenerateScenario}
-            onRefreshSavedScenarios={() => void loadSavedScenarios()}
-            scenarioLoading={scenarioLoading}
-            scenarioError={scenarioError}
-            scenarioPlan={scenarioPlan}
-            scenarioName={scenarioName}
-            onScenarioNameChange={setScenarioName}
-            onSaveScenario={handleSaveScenario}
-            scenarioSaving={scenarioSaving}
-            savedScenarios={savedScenarios}
-            selectedScenarioId={selectedScenarioId}
-            onSelectScenario={handleSelectScenario}
-          />
         </div>
       </div>
     </div>
@@ -614,7 +826,7 @@ function SummaryCard({
   )
 }
 
-interface ScenarioPlannerCardProps {
+interface ScenarioActionCenterProps {
   channels: ChannelMetrics[]
   plannerEnabled: boolean
   targetCpaDrafts: Record<string, string>
@@ -638,9 +850,12 @@ interface ScenarioPlannerCardProps {
   savedScenarios: ScenarioRecordPayload[]
   selectedScenarioId: string
   onSelectScenario: (scenarioId: string) => void
+  nextActionSummary: string
+  onExportCsv: () => void
+  onExportJson: () => void
 }
 
-function ScenarioPlannerCard({
+function ScenarioActionCenter({
   channels,
   plannerEnabled,
   targetCpaDrafts,
@@ -664,97 +879,142 @@ function ScenarioPlannerCard({
   savedScenarios,
   selectedScenarioId,
   onSelectScenario,
-}: ScenarioPlannerCardProps) {
+  nextActionSummary,
+  onExportCsv,
+  onExportJson,
+}: ScenarioActionCenterProps) {
   return (
-    <div className="card-static p-6 space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold text-slate-900">Scenario Planner</h3>
-        <p className="text-sm text-slate-500 mt-1">
-          Generate budget moves from traffic-light signals using fixed 10% spend steps.
+    <div className="card-static p-6 space-y-5 animate-fade-in">
+      <div className="flex flex-col gap-2">
+        <p className="text-xs uppercase tracking-[0.12em] text-indigo-500 font-semibold">Primary Workflow</p>
+        <h2 className="text-2xl font-semibold text-slate-900">Generate Recommended Plan</h2>
+        <p className="text-sm text-slate-500">
+          Create operator-ready spend moves in 10% increments, review confidence, then export for campaign deployment.
         </p>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Channel Target CPA</p>
-          <button
-            className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => void onApplyTargetCpas()}
-            disabled={!plannerEnabled || targetCpaApplying || channels.length === 0}
-            type="button"
-          >
-            {targetCpaApplying ? 'Applying...' : 'Apply Targets'}
-          </button>
-        </div>
-        <div className="space-y-1">
-          {channels.length === 0 && <p className="text-xs text-slate-400">No channels available</p>}
-          {channels.map((channel) => (
-            <label key={channel.channelName} className="grid grid-cols-[1fr_auto] items-center gap-2 text-sm text-slate-700">
-              <span>{channel.channelName}</span>
-              <input
-                type="number"
-                min={0.01}
-                step={0.01}
-                value={targetCpaDrafts[channel.channelName] ?? ''}
-                onChange={(event) => onTargetCpaDraftChange(channel.channelName, event.target.value)}
-                className="w-28 rounded-md border border-slate-300 px-2 py-1 text-right text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              />
-            </label>
-          ))}
-        </div>
-        {targetCpaError && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {targetCpaError}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div className="space-y-3 xl:col-span-2">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Channel Target CPA</p>
+              <button
+                className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => void onApplyTargetCpas()}
+                disabled={!plannerEnabled || targetCpaApplying || channels.length === 0}
+                type="button"
+              >
+                {targetCpaApplying ? 'Applying...' : 'Apply Targets'}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {channels.length === 0 && <p className="text-xs text-slate-400">No channels available</p>}
+              {channels.map((channel) => (
+                <label key={channel.channelName} className="grid grid-cols-[1fr_auto] items-center gap-2 text-sm text-slate-700">
+                  <span>{channel.channelName}</span>
+                  <input
+                    type="number"
+                    min={0.01}
+                    step={0.01}
+                    value={targetCpaDrafts[channel.channelName] ?? ''}
+                    onChange={(event) => onTargetCpaDraftChange(channel.channelName, event.target.value)}
+                    className="w-28 rounded-md border border-slate-300 px-2 py-1 text-right text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  />
+                </label>
+              ))}
+            </div>
+            {targetCpaError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {targetCpaError}
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <div className="space-y-2">
-        <label className="text-xs uppercase tracking-wide text-slate-500">Budget Delta (%)</label>
-        <input
-          type="number"
-          value={budgetDeltaPercent}
-          step={1}
-          onChange={(event) => onBudgetDeltaPercentChange(Number(event.target.value) || 0)}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-        />
-        <p className="text-xs text-slate-500">
-          0 keeps total budget flat. Positive values add spend, negative values trim spend.
-        </p>
-      </div>
+          <div>
+            <label className="text-xs uppercase tracking-wide text-slate-500">Budget Delta (%)</label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {BUDGET_DELTA_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => onBudgetDeltaPercentChange(preset)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
+                    budgetDeltaPercent === preset
+                      ? 'bg-indigo-600 border-indigo-600 text-white'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {preset > 0 ? `+${preset}%` : `${preset}%`}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              value={budgetDeltaPercent}
+              step={1}
+              onChange={(event) => onBudgetDeltaPercentChange(Number(event.target.value) || 0)}
+              className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              0 keeps total budget flat. Positive values add spend, negative values trim spend.
+            </p>
+          </div>
 
-      <div className="space-y-2">
-        <p className="text-xs uppercase tracking-wide text-slate-500">Locked Channels</p>
-        <div className="space-y-1">
-          {channels.length === 0 && <p className="text-xs text-slate-400">No channels available</p>}
-          {channels.map((channel) => (
-            <label key={channel.channelName} className="flex items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={lockedChannels.includes(channel.channelName)}
-                onChange={() => onToggleLockedChannel(channel.channelName)}
-              />
-              {channel.channelName}
-            </label>
-          ))}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Locked Channels</p>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {channels.length === 0 && <p className="text-xs text-slate-400">No channels available</p>}
+              {channels.map((channel) => (
+                <label key={channel.channelName} className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={lockedChannels.includes(channel.channelName)}
+                    onChange={() => onToggleLockedChannel(channel.channelName)}
+                  />
+                  {channel.channelName}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              className="btn-primary"
+              onClick={() => void onGenerateScenario()}
+              disabled={!plannerEnabled || scenarioLoading || targetCpaApplying}
+              type="button"
+            >
+              {scenarioLoading ? 'Generating...' : 'Generate Recommended Plan'}
+            </button>
+            <button
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+              onClick={() => void onRefreshSavedScenarios()}
+              type="button"
+            >
+              Reload Saved
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="flex items-center gap-2">
-        <button
-          className="btn-primary"
-          onClick={() => void onGenerateScenario()}
-          disabled={!plannerEnabled || scenarioLoading || targetCpaApplying}
-        >
-          {scenarioLoading ? 'Generating...' : 'Generate Scenario'}
-        </button>
-        <button
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-          onClick={() => void onRefreshSavedScenarios()}
-          type="button"
-        >
-          Reload Saved
-        </button>
+        <div className="rounded-md border border-indigo-100 bg-indigo-50/60 px-4 py-3">
+          <p className="text-xs uppercase tracking-wide text-indigo-500 font-semibold">What To Do Now</p>
+          <p className="text-sm text-indigo-900 mt-2">{nextActionSummary}</p>
+          {scenarioPlan && (
+            <div className="text-xs text-indigo-700 mt-3 space-y-1">
+              <p>
+                Projected spend: ${formatMoney(scenarioPlan.projectedSummary.currentTotalSpend)}
+                {' -> '}
+                ${formatMoney(scenarioPlan.projectedSummary.projectedTotalSpend)}
+              </p>
+              <p>
+                Net delta: {scenarioPlan.projectedSummary.totalSpendDelta >= 0 ? '+' : ''}
+                ${formatMoney(scenarioPlan.projectedSummary.totalSpendDelta)}
+                {' / '}
+                {scenarioPlan.projectedSummary.totalSpendDeltaPercent.toFixed(1)}%
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {scenarioError && (
@@ -766,47 +1026,65 @@ function ScenarioPlannerCard({
       {scenarioPlan && (
         <>
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Projected Spend</p>
-            <p className="text-sm text-slate-700 mt-1">
-              ${scenarioPlan.projectedSummary.currentTotalSpend.toFixed(2)}
-              {' -> '}
-              ${scenarioPlan.projectedSummary.projectedTotalSpend.toFixed(2)}
-              {' '}
-              ({scenarioPlan.projectedSummary.totalSpendDelta >= 0 ? '+' : ''}
-              {scenarioPlan.projectedSummary.totalSpendDelta.toFixed(2)}
-              {' / '}
-              {scenarioPlan.projectedSummary.totalSpendDeltaPercent.toFixed(1)}%)
-            </p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Projected Mix</p>
             <p className="text-xs text-slate-500 mt-1">
-              Increase: {scenarioPlan.projectedSummary.channelsIncrease} | Decrease: {scenarioPlan.projectedSummary.channelsDecrease} | Maintain: {scenarioPlan.projectedSummary.channelsMaintain}
+              Increase: {scenarioPlan.projectedSummary.channelsIncrease}
+              {' | '}
+              Decrease: {scenarioPlan.projectedSummary.channelsDecrease}
+              {' | '}
+              Maintain: {scenarioPlan.projectedSummary.channelsMaintain}
+              {' | '}
+              Locked: {scenarioPlan.projectedSummary.channelsLocked}
             </p>
           </div>
 
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
             {scenarioPlan.recommendations.map((recommendation) => (
               <div
                 key={recommendation.channelName}
-                className="rounded-md border border-slate-200 px-3 py-2"
+                className="rounded-md border border-slate-200 px-3 py-2 bg-white"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-slate-800">{recommendation.channelName}</p>
-                  <span className={`text-xs font-semibold ${scenarioActionClass(recommendation.action)}`}>
-                    {formatScenarioAction(recommendation.action)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold ${scenarioActionClass(recommendation.action)}`}>
+                      {formatScenarioAction(recommendation.action)}
+                    </span>
+                    <span className="text-[11px] rounded-full bg-slate-100 text-slate-600 px-2 py-0.5">
+                      {getConfidenceLabel(recommendation.confidenceTier)}
+                    </span>
+                  </div>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">{recommendation.rationale}</p>
                 <p className="text-xs text-slate-600 mt-1">
-                  ${recommendation.currentSpend.toFixed(2)}
+                  ${formatMoney(recommendation.currentSpend)}
                   {' -> '}
-                  ${recommendation.recommendedSpend.toFixed(2)}
+                  ${formatMoney(recommendation.recommendedSpend)}
                   {' '}
                   ({recommendation.spendDelta >= 0 ? '+' : ''}
-                  {recommendation.spendDelta.toFixed(2)}
+                  {formatMoney(recommendation.spendDelta)}
                   {' / '}
                   {recommendation.spendDeltaPercent.toFixed(1)}%)
                 </p>
               </div>
             ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+              onClick={onExportCsv}
+              type="button"
+            >
+              Export Plan CSV
+            </button>
+            <button
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+              onClick={onExportJson}
+              type="button"
+            >
+              Export Plan JSON
+            </button>
           </div>
 
           <div className="space-y-2">

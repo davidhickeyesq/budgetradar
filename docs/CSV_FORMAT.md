@@ -29,11 +29,15 @@ date,channel_name,spend,conversions,impressions
 ```
 
 ## Validation Rules
-1. **Dates:** Must be valid calendar dates.
-2. **Numeric Values:** `spend` and `conversions` must be non-negative. Empty values will be treated as 0.
-3. **Duplicates:** If you upload data for a date/channel/account combination that already exists, the existing record will be **updated** (overwritten) with the new values. This allows for correcting data errors by re-uploading.
+1. **Dates:** Must be valid calendar dates in exact `YYYY-MM-DD` format.
+2. **Required Fields:** `date`, `channel_name`, `spend`, and `conversions` are required for every row.
+3. **Numeric Values:** `spend` and `conversions` must be valid non-negative numbers.
+4. **Optional Impressions:** When provided, `impressions` must be a non-negative integer.
+5. **Validation Behavior:** Import is all-or-nothing. If any row is invalid, the API returns `400` with row-level error details.
+6. **Duplicates:** If you upload data for a date/channel/account combination that already exists, the existing record will be **updated** (overwritten) with the new values. This allows for correcting data errors by re-uploading.
 
 ## Common Errors
 - `Missing required columns`: Ensure check spelling of headers exactly.
-- `Invalid date format`: Use YYYY-MM-DD (e.g. 2025-01-01, NOT 01/01/2025).
-- `Invalid numeric`: Remove '$', ',' or other symbols from spend/conversions columns.
+- `CSV validation failed`: Response includes row-level errors such as invalid dates, missing channel names, or invalid numeric fields.
+- `Invalid date format`: Use exact `YYYY-MM-DD` (e.g. `2025-01-01`, NOT `01/01/2025`).
+- `Invalid numeric`: Use plain numeric values (no currency symbols like `$`).

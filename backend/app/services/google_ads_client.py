@@ -1,22 +1,17 @@
-from dataclasses import dataclass
 from datetime import date, timedelta
-import re
+from app.config import get_settings
+from app.services.google_ads_provider_real import GoogleAdsRealProvider
+from app.services.google_ads_provider_types import (
+    GoogleAdsMetricRow,
+    GoogleAdsProvider,
+    normalize_customer_id,
+)
 
 
-@dataclass(frozen=True)
-class GoogleAdsMetricRow:
-    date: date
-    channel_name: str
-    spend: float
-    conversions: float
-    impressions: int
+class GoogleAdsMockProvider:
+    """Deterministic local provider used for local-first demo mode."""
 
-
-class GoogleAdsClient:
-    """
-    Deterministic MVP provider used to exercise ingest + upsert flow locally.
-    Replace with a real Google Ads integration when credentials/OAuth are added.
-    """
+    provider_mode = "mock"
 
     _channels = ("Google Search", "Google Display")
 
@@ -26,9 +21,7 @@ class GoogleAdsClient:
         date_from: date,
         date_to: date,
     ) -> list[GoogleAdsMetricRow]:
-        normalized_customer_id = re.sub(r"\D", "", customer_id)
-        if len(normalized_customer_id) != 10:
-            raise ValueError("customer_id must contain exactly 10 digits")
+        normalized_customer_id = normalize_customer_id(customer_id)
 
         rows: list[GoogleAdsMetricRow] = []
         total_days = (date_to - date_from).days + 1
@@ -57,5 +50,11 @@ class GoogleAdsClient:
         return rows
 
 
-def get_google_ads_client() -> GoogleAdsClient:
-    return GoogleAdsClient()
+def get_google_ads_client() -> GoogleAdsProvider:
+    settings = get_settings()
+    if settings.google_ads_provider == "mock":
+        return GoogleAdsMockProvider()
+    if settings.google_ads_provider == "real":
+        return GoogleAdsRealProvider(settings=settings)
+
+    raise ValueError(f"Unsupported GOOGLE_ADS_PROVIDER: {settings.google_ads_provider}")

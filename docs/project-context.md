@@ -6,9 +6,9 @@ We are building a tool that solves "Blended ROAS Blindness." Marketers optimize 
 - **The "Radar":** A dashboard showing Red/Yellow/Green traffic lights based on saturation.
 
 ## 2. Tech Stack & Architecture
-- **Frontend:** Next.js (App Router) + Tremor (Charts/UI).
+- **Frontend:** Next.js (App Router) + Tailwind CSS + Recharts/custom components.
 - **Backend:** FastAPI (Python 3.11) with SQLAlchemy.
-- **Database:** PostgreSQL (Local via Docker 🐳 or Cloud via Supabase ⚡).
+- **Database:** PostgreSQL (local-first via Docker 🐳).
 - **Math Engine:** A specialized Python service (FastAPI) using `scipy.optimize` and `numpy`.
     - *Constraint:* The math engine operates statelessly, fetching data from the DB, fitting curves, and saving parameters.
 
@@ -26,7 +26,7 @@ We use the **Hill Function** for diminishing returns:
 
 - **Marginal CPA Logic:**
   1. Calculate `y_current` at `current_spend`.
-  2. Calculate `y_next` at `current_spend * 1.01` (1% increment).
+  2. Calculate `y_next` at `current_spend * 1.10` (10% increment).
   3. `Marginal CPA` = `(Spend_Next - Spend_Current) / (y_next - y_current)`.
 
 ## 5. The "Traffic Light" Rules
@@ -34,3 +34,10 @@ We use the **Hill Function** for diminishing returns:
 - **Green:** Marginal CPA < 0.9 * Target. (Scale Spend).
 - **Yellow:** Marginal CPA is within +/- 10% of Target. (Maintain).
 - **Red:** Marginal CPA > 1.1 * Target. (Cut Spend - Saturated).
+
+## 6. Google Ads Provider Modes
+- **`mock` (default):** deterministic local provider for local-first development and demos.
+- **`real`:** live Google Ads API provider for production data pulls.
+  - Required env vars: `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`,
+    `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`.
+  - Optional env var: `GOOGLE_ADS_LOGIN_CUSTOMER_ID`.

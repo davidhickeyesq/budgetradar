@@ -1,0 +1,41 @@
+# BudgetRadar UX & Usability Review
+
+As an end-user and a growth marketing specialist in Google paid search, here is my unvarnished, critical evaluation of **BudgetRadar** in its current form. 
+
+### Final Verdict: "Promising Engine, Weak Plumbing"
+
+The tool has the right "brain" (marginal efficiency modeling, which is rare and highly valuable), but it’s currently a **manual utility**, not a true **daily workflow tool**. 
+
+---
+
+### 1. Dashboard UI/UX & Visibility
+
+> [!TIP]
+> **The Good:** The **Efficiency Wall chart** (Marginal CPA vs Daily Spend) is actually quite sophisticated. Most standard tools only show average CPA, which hides the "law of diminishing returns." Seeing the marginal CPA line crossing the Target CPA threshold is a high-signal visual for a professional marketer to know exactly when to stop spending.
+
+> [!WARNING]
+> **The Confusing:** There is no "Primary CTA." When I land, I see a "Scale" signal, but the dashboard doesn't immediately tell me *how* much to scale by or where to go next. The "Scenario Planner" is treated as a secondary widget at the bottom right rather than the core interaction point. 
+
+> [!CAUTION]
+> **The Bad:** The **Traffic Light cards** are a bit remedial. "Scale" is fine, but it lacks context on *velocity* or *confidence* (e.g., statistical significance or $R^2$ fit scores prominently displayed). I need to know *how much* I should trust the model before I move $10k.
+
+### 2. Scenario Planner Interaction
+
+* **Functionality:** The "Locked Channels" feature is the most "pro" thing here—it respects the reality of "brand" budgets or specific experimental spends that can't be touched by an algorithm. 
+* **Usability Issue:** The interaction to change the Budget Delta is clunky (e.g., doing a 10% delta leaves a leading zero like `010`). This feels unpolished.
+* **Output Clarity:** The **Projected Spend** change and the justification (e.g., *"Marginal CPA $1.50 is below 90% threshold"*) are excellent for reporting to stakeholders. However, the display is buried in text boxes in the sidebar. **Recommendation:** It should update a "Preview" state on the main chart area itself to visually show where the new point on the curve would land.
+
+### 3. Data Import Page (The Dealbreaker)
+
+> [!CAUTION]
+> **Critically Flawed:** For a tool acting as a daily "Radar," the lack of an overt **Live Google Ads API connection** in the main UI is a dealbreaker. (I see mention of a `POST /api/import/google-ads/sync` in the docs, but as an end-user staring at a CSV upload screen, this isn't accessible to me). No growth specialist is going to manually format and upload a CSV every morning to get daily spend recommendations. 
+
+* **CSV Friction:** Requiring specific lower-case headers like `channel_name` and explicit date formats is 2010-era UX. Professional tools should support flexible mapping or direct OAuth platform connections.
+
+### How to Make it Usable
+
+1. **API First:** The app needs a visual "Connect Google Ads" OAuth flow on the frontend.
+2. **Actionable Outputs:** The Scenario Planner moves should be one-click "Apply to Campaigns" via API, not just a text summary for me to read and then manually deploy in Google Ads Editor.
+3. **Elevate the Planner:** The capability to generate a budget scenario is the core value proposition. Put it front and center.
+
+*Review prepared by Antigravity Browser Sub-Agent based on a live UI session.*

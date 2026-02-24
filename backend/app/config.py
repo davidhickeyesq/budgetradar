@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     require_api_key: bool = False
     app_api_key: Optional[str] = None
     google_ads_max_sync_days: int = 93
+    google_ads_provider: Literal["mock", "real"] = "mock"
+    google_ads_developer_token: Optional[str] = None
+    google_ads_client_id: Optional[str] = None
+    google_ads_client_secret: Optional[str] = None
+    google_ads_refresh_token: Optional[str] = None
+    google_ads_login_customer_id: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,7 +1,7 @@
 'use client'
 
-import type { ChannelMetrics, ScenarioRecommendation, TrafficLight } from '@/types'
-import { getRecommendation } from '@/types'
+import type { ChannelMetrics, ConfidenceTier, ScenarioRecommendation, TrafficLight } from '@/types'
+import { getConfidenceLabel, getConfidenceTier, getRecommendation } from '@/types'
 import { CostCurveChart } from '@/components/CostCurveChart'
 
 interface TrafficLightRadarProps {
@@ -35,6 +35,13 @@ const trafficLightLabels: Record<TrafficLight, string> = {
   yellow: 'Maintain',
   red: 'Cut',
   grey: 'No Data',
+}
+
+const confidenceBadgeClasses: Record<ConfidenceTier, string> = {
+  high: 'bg-emerald-100 text-emerald-700',
+  medium: 'bg-amber-100 text-amber-700',
+  low: 'bg-red-100 text-red-700',
+  unknown: 'bg-slate-100 text-slate-600',
 }
 
 export function TrafficLightRadar({
@@ -95,6 +102,18 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
 
   const hasBackendCurve = Boolean(curvePoints && curvePoints.length > 0)
   const hasLegacyCurve = Boolean(modelParams && marginalCpa !== null)
+  const confidenceTier = scenarioRecommendation?.confidenceTier ?? getConfidenceTier(rSquared)
+  const projectedPoint = scenarioRecommendation && scenarioRecommendation.projectedMarginalCpa !== null
+    ? {
+        spend: scenarioRecommendation.recommendedSpend,
+        marginalCpa: scenarioRecommendation.projectedMarginalCpa,
+      }
+    : null
+  const showLowConfidenceWarning = Boolean(
+    scenarioRecommendation
+    && (scenarioRecommendation.action === 'increase' || scenarioRecommendation.action === 'decrease')
+    && (confidenceTier === 'low' || confidenceTier === 'unknown')
+  )
 
   return (
     <div
@@ -129,6 +148,7 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
             channelName={channelName}
             curvePoints={curvePoints}
             currentPoint={currentPoint}
+            projectedPoint={projectedPoint}
           />
           {/* Chart legend */}
           <div className="flex items-center justify-center gap-5 mt-3 text-xs text-slate-500">
@@ -151,6 +171,10 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
             <div className="flex items-center gap-1.5">
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#1e293b', display: 'inline-block', border: '2px solid white', boxShadow: '0 0 0 1px #cbd5e1' }} />
               Current
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0f766e', display: 'inline-block', border: '2px solid white', boxShadow: '0 0 0 1px #99f6e4' }} />
+              Projected
             </div>
           </div>
         </>
@@ -179,12 +203,23 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
         <p className="text-sm text-slate-500">
           {getRecommendation(trafficLight)}
         </p>
-        {rSquared !== null && (
-          <p className="text-xs text-slate-400">
-            Model fit (R²): {(rSquared * 100).toFixed(1)}%
-          </p>
-        )}
+        <div className="flex items-center gap-2">
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${confidenceBadgeClasses[confidenceTier]}`}>
+            {getConfidenceLabel(confidenceTier)}
+          </span>
+          {rSquared !== null && (
+            <p className="text-xs text-slate-400">
+              R² {(rSquared * 100).toFixed(1)}%
+            </p>
+          )}
+        </div>
       </div>
+
+      {showLowConfidenceWarning && (
+        <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          Low confidence fit. Treat this action as directional and validate with a small spend step first.
+        </div>
+      )}
     </div>
   )
 }
