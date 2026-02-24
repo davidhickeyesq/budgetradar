@@ -2,13 +2,13 @@
 id: P010
 title: Scenario step constraint UX clarity
 state: TODO
-execution_status: Backlog
+execution_status: Ready
 owner:
 branch: codex/p010-explain-scenario-constraint
 pr:
 depends_on:
   - P005
-updated_at: 2026-02-23
+updated_at: 2026-02-24
 issue: https://github.com/davidhickeyesq/budgetradar/issues/34
 project_item: PVTI_lAHOACofT84BPcnczgl_pM0
 epic_issue: https://github.com/davidhickeyesq/budgetradar/issues/14
