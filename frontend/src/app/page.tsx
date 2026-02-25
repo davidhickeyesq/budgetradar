@@ -755,15 +755,63 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex flex-col items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full border-3 border-indigo-200 border-t-indigo-600"
-            style={{ animation: 'spin 0.8s linear infinite' }}
-          />
-          <p className="text-sm text-slate-500">Loading channel analysis...</p>
+      <div className="space-y-6 animate-pulse">
+        {/* Target CPA bar skeleton */}
+        <div className="card-static p-4 flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-3 w-20 rounded bg-slate-200" />
+            <div className="h-2.5 w-48 rounded bg-slate-100" />
+          </div>
+          <div className="h-9 w-24 rounded-md bg-slate-200" />
         </div>
-        <style>{'@keyframes spin { to { transform: rotate(360deg) } }'}</style>
+
+        {/* Action banner skeleton */}
+        <div className="card-static border-l-4 border-slate-200 p-5">
+          <div className="flex items-start gap-3">
+            <div className="h-5 w-5 rounded bg-slate-200 mt-0.5" />
+            <div className="space-y-2 flex-1">
+              <div className="h-2.5 w-24 rounded bg-slate-200" />
+              <div className="h-4 w-72 rounded bg-slate-200" />
+              <div className="h-3 w-40 rounded bg-slate-100" />
+            </div>
+          </div>
+        </div>
+
+        {/* Channel grid + summary sidebar skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 card-static p-6 space-y-4">
+            <div className="h-5 w-36 rounded bg-slate-200" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((n) => (
+                <div key={n} className="rounded-md border border-slate-100 p-4 space-y-2">
+                  <div className="h-4 w-28 rounded bg-slate-200" />
+                  <div className="h-3 w-20 rounded bg-slate-100" />
+                  <div className="h-24 rounded bg-slate-100" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card-static p-6 space-y-4">
+            <div className="h-5 w-20 rounded bg-slate-200" />
+            <div className="h-8 w-32 rounded bg-slate-200" />
+            <div className="space-y-3">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="flex items-center justify-between">
+                  <div className="h-3 w-16 rounded bg-slate-100" />
+                  <div className="h-4 w-6 rounded bg-slate-200" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Scenario planner skeleton */}
+        <div className="card-static p-6">
+          <div className="space-y-2">
+            <div className="h-2.5 w-24 rounded bg-slate-200" />
+            <div className="h-6 w-64 rounded bg-slate-200" />
+          </div>
+        </div>
       </div>
     )
   }

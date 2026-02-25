@@ -1,9 +1,9 @@
 ---
 id: P022
 title: Dashboard structural loading skeleton
-state: TODO
-execution_status: Backlog
-owner:
+state: REVIEW
+execution_status: In Review
+owner: claude-code
 branch: codex/p022-dashboard-loading-skeleton
 pr:
 depends_on:
