@@ -852,7 +852,7 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      <div className="card-static p-4 flex items-center justify-between animate-fade-in">
+      <div className="card-static p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
         <div>
           <label htmlFor="target-cpa-input" className="text-xs uppercase tracking-wide text-slate-500 font-semibold">
             Target CPA
@@ -1139,13 +1139,13 @@ function ScenarioActionCenter({
             <p className="text-xs text-slate-500 mt-1">
               Budget moves are simulated in fixed 10% steps to preserve marginal-curve numerical stability.
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-1.5 sm:gap-2">
               {BUDGET_DELTA_PRESETS.map((preset) => (
                 <button
                   key={preset}
                   type="button"
                   onClick={() => onBudgetDeltaPercentChange(preset)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
+                  className={`rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs font-semibold border transition-colors ${
                     budgetDeltaPercent === preset
                       ? 'bg-indigo-600 border-indigo-600 text-white'
                       : 'border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -1245,7 +1245,7 @@ function ScenarioActionCenter({
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {scenarioPlan.recommendations.map((recommendation) => (
               <div
                 key={recommendation.channelName}

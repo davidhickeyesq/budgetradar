@@ -1,9 +1,9 @@
 ---
 id: P023
 title: Mobile responsiveness polish for planner and charts
-state: TODO
-execution_status: Backlog
-owner:
+state: REVIEW
+execution_status: In Review
+owner: claude-code
 branch: codex/p023-mobile-responsive-polish
 pr:
 depends_on:

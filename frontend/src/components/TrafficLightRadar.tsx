@@ -204,7 +204,7 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
             projectedPoint={projectedPoint}
           />
           {/* Chart legend */}
-          <div className="flex items-center justify-center gap-5 mt-3 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 mt-3 text-xs text-slate-500">
             <div className="flex items-center gap-1.5">
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
               Scale
