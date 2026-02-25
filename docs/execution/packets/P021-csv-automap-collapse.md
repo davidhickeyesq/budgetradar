@@ -1,9 +1,9 @@
 ---
 id: P021
 title: CSV auto-map collapse and review toggle
-state: TODO
-execution_status: Backlog
-owner:
+state: REVIEW
+execution_status: In Review
+owner: claude-code
 branch: codex/p021-csv-automap-collapse
 pr:
 depends_on:
