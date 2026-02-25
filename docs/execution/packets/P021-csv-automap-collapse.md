@@ -5,7 +5,7 @@ state: REVIEW
 execution_status: In Review
 owner: claude-code
 branch: codex/p021-csv-automap-collapse
-pr:
+pr: https://github.com/davidhickeyesq/budgetradar/pull/49
 depends_on:
   - P020
 updated_at: 2026-02-24
