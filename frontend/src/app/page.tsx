@@ -338,6 +338,7 @@ export default function Home() {
   const [scenarioPlan, setScenarioPlan] = useState<ScenarioPlan | null>(null)
   const [scenarioLoading, setScenarioLoading] = useState(false)
   const [scenarioSaving, setScenarioSaving] = useState(false)
+  const [saveConfirmation, setSaveConfirmation] = useState<string | null>(null)
   const [scenarioError, setScenarioError] = useState<string | null>(null)
   const [scenarioName, setScenarioName] = useState('')
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRecordPayload[]>([])
@@ -594,7 +595,10 @@ export default function Home() {
       setScenarioName(savedScenario.name)
       await loadSavedScenarios(savedScenario.id)
       setScenarioError(null)
+      setSaveConfirmation(`Saved "${savedScenario.name}"`)
+      setTimeout(() => setSaveConfirmation(null), 3000)
     } catch (err) {
+      setSaveConfirmation(null)
       setScenarioError(err instanceof Error ? err.message : 'Failed to save scenario')
     } finally {
       setScenarioSaving(false)
@@ -907,6 +911,7 @@ export default function Home() {
               onScenarioNameChange={setScenarioName}
               onSaveScenario={handleSaveScenario}
               scenarioSaving={scenarioSaving}
+              saveConfirmation={saveConfirmation}
               savedScenarios={savedScenarios}
               selectedScenarioId={selectedScenarioId}
               onSelectScenario={handleSelectScenario}
@@ -997,6 +1002,7 @@ interface ScenarioActionCenterProps {
   onScenarioNameChange: (value: string) => void
   onSaveScenario: () => void | Promise<void>
   scenarioSaving: boolean
+  saveConfirmation: string | null
   savedScenarios: ScenarioRecordPayload[]
   selectedScenarioId: string
   onSelectScenario: (scenarioId: string) => void
@@ -1026,6 +1032,7 @@ function ScenarioActionCenter({
   onScenarioNameChange,
   onSaveScenario,
   scenarioSaving,
+  saveConfirmation,
   savedScenarios,
   selectedScenarioId,
   onSelectScenario,
@@ -1255,14 +1262,21 @@ function ScenarioActionCenter({
               onChange={(event) => onScenarioNameChange(event.target.value)}
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
-            <button
-              className="btn-primary"
-              onClick={() => void onSaveScenario()}
-              disabled={scenarioSaving}
-              type="button"
-            >
-              {scenarioSaving ? 'Saving...' : 'Save Scenario'}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                className="btn-primary"
+                onClick={() => void onSaveScenario()}
+                disabled={scenarioSaving}
+                type="button"
+              >
+                {scenarioSaving ? 'Saving...' : 'Save Scenario'}
+              </button>
+              {saveConfirmation && (
+                <span className="text-sm font-medium text-emerald-600 animate-fade-in">
+                  {saveConfirmation}
+                </span>
+              )}
+            </div>
           </div>
         </>
       )}
