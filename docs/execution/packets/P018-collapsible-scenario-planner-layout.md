@@ -1,9 +1,9 @@
 ---
 id: P018
 title: Collapsible scenario planner + layout reorder
-state: TODO
-execution_status: Backlog
-owner:
+state: REVIEW
+execution_status: In Review
+owner: claude-code
 branch: codex/p018-collapsible-scenario-planner-layout
 pr:
 depends_on:
