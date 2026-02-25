@@ -159,9 +159,10 @@ For cross-agent delivery coordination, follow:
 
 Rules:
 - Packet specs in `/Users/davidhickey/Documents/Projects/budgetradar/docs/execution/packets/` are canonical.
-- GitHub Project is operational mirror only.
-- Packet PRs must use `[P00X]` title format and include packet metadata per PR template.
-- Non-packet execution-infra PRs must use `[CHORE]` or `[EPIC]` prefix.
-- Packet assignment prompts must require status mirroring:
-  - before coding: set `Execution Status -> In Progress` and confirm in first reply
-  - before done: set `Execution Status -> In Review` and provide PR URL
+- `status.yaml` + packet front matter are the operational status source.
+- GitHub Projects/issues are optional mirrors only; they are not required to start or complete packet work.
+- Packet PRs (when used) must use `[P00X]` title format and include packet metadata per PR template.
+- Non-packet execution-infra PRs (when used) must use `[CHORE]` or `[EPIC]` prefix.
+- Packet assignment prompts must require local status updates:
+  - before coding: set packet `state: IN_PROGRESS` and set `execution_status: In Progress` in `status.yaml`
+  - before done: set packet `state: REVIEW` (or `DONE` on merge), update `status.yaml`, and provide PR URL only if one exists

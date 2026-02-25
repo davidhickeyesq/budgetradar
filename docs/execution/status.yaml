@@ -1,7 +1,12 @@
 updated_at: "2026-02-24"
+tracking:
+  system: "repo-docs"
+  github_projects_required: false
+  github_issues_required: false
+  note: "GitHub issue/project fields are optional metadata only."
 project:
   name: "BudgetRadar Execution"
-  type: "github-projects-v2"
+  type: "optional-github-projects-v2"
   owner: "davidhickeyesq"
   repo: "budgetradar"
   url: "https://github.com/users/davidhickeyesq/projects/5"

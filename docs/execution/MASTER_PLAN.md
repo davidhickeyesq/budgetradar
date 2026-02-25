@@ -1,4 +1,4 @@
-# Shared Multi-Agent Execution System (GitHub Projects v2)
+# Shared Multi-Agent Execution System (Repo-First)
 
 ## Objective
 
@@ -6,15 +6,15 @@ Establish a repeatable execution system across Codex and Google Anti-Gravity
 using:
 
 - Repo packet docs as canonical implementation spec.
-- GitHub Projects v2 as operational visibility board.
-- Parent Epic issue with packet sub-issues.
+- `status.yaml` as the machine-readable execution index.
+- Optional external mirrors (GitHub issues/projects) only when useful.
 
 ## Operating Model
 
-- Project type: GitHub Projects v2.
+- Tracking model: repo-first.
 - Scope: foundation only (no automations in this phase).
 - Execution: one packet PR at a time.
-- Hierarchy: one Epic issue + packet issues as sub-issues.
+- Hierarchy: packet docs + `status.yaml` (no required issue hierarchy).
 
 ## Packet Order
 
@@ -72,7 +72,7 @@ Dependency chain:
 
 ## Enforcement Layer
 
-The following controls are now committed in-repo:
+The following controls are committed in-repo:
 
 1. Handoff protocol:
    `/Users/davidhickey/Documents/Projects/budgetradar/docs/execution/HANDOFF_PROTOCOL.md`
@@ -81,69 +81,47 @@ The following controls are now committed in-repo:
 3. CI check for packet PR metadata and title:
    `/Users/davidhickey/Documents/Projects/budgetradar/.github/workflows/packet-pr-guardrails.yml`
 
-## Day-by-Day Rollout
+## Rollout
 
 ### Day 1
 
-1. Create Project v2 named `BudgetRadar Execution`.
-2. Create custom fields and required views.
-3. Create Epic issue and packet issues.
-4. Add all issues to project and set initial states.
-
-### Day 2
-
 1. Finalize packet docs in `docs/execution/packets/`.
-2. Insert issue/PR/project links into packet docs.
-3. Sync project field values from packet docs.
+2. Ensure `docs/execution/status.yaml` has one entry per packet.
+3. Mark the first dependency-cleared packet as `Ready`.
 
-### Day 3+
+### Day 2+
 
 1. Work one packet at a time.
-2. Move packet state via PR lifecycle:
-   - PR open: `In Review`
-   - PR merge: `Done`
-3. Promote next packet from `Backlog` to `Ready`.
+2. Move packet state via local doc lifecycle:
+   - start work: `IN_PROGRESS` / `In Progress`
+   - PR open (if used): `REVIEW` / `In Review`
+   - merge: `DONE` / `Done`
+3. Promote next dependency-cleared packet from `Backlog` to `Ready`.
 4. Use CI guardrail failures as hard stop until PR metadata contract is fixed.
 
 ## Governance Rules
 
-1. Packet docs are canonical.
-2. Project fields mirror execution status/ownership only.
-3. Scope changes require packet doc update before project update.
-4. No packet starts without:
-   - `Status=Ready`
+1. Packet docs are canonical implementation scope.
+2. `status.yaml` is canonical operational status.
+3. GitHub issues/projects are optional references, never prerequisites.
+4. Scope changes require packet doc update before `status.yaml` update.
+5. No packet starts without:
+   - `execution_status: Ready`
    - explicit owner
    - dependencies cleared
 
-## Project v2 Field Schema
+## Status Schema
 
-- `Type` (single select): `Epic`, `Packet`, `Chore`
-- `Execution Status` (single select): `Backlog`, `Ready`, `In Progress`,
-  `Blocked`, `In Review`, `Done`
-- `Packet ID` (text): `P001` through `P023`
-- `Spec Path` (text): absolute path to packet markdown
-- `Branch` (text)
-- `PR URL` (text)
-- `Depends On` (text)
-- `Start Date` (date)
-- `Target Date` (date)
-
-## Required Views
-
-1. `Board - Packets by Status` (filter `Type=Packet`, group by
-   `Execution Status`)
-2. `Table - All Execution Items` (all fields visible)
-3. `Roadmap - Packet Schedule` (date-based)
-
-### Note
-
-The public GitHub GraphQL/CLI surface does not currently expose mutations for
-project view creation. Views must be created/configured manually in the project
-web UI.
+- `state`: `TODO`, `IN_PROGRESS`, `REVIEW`, `DONE`
+- `execution_status`: `Backlog`, `Ready`, `In Progress`, `Blocked`, `In Review`, `Done`
+- Required per packet:
+  - `id`, `title`, `state`, `execution_status`, `owner`, `branch`, `depends_on`, `spec_path`
+- Optional per packet:
+  - `issue_number`, `issue_url`, `project_item_id`, `pr_url`, `start_date`, `target_date`
 
 ## Validation Checklist
 
-- Epic shows all packet sub-issues.
-- Project filter `Type=Packet` returns exactly twenty-three packet items.
-- Exactly one packet is `In Progress` at any time.
-- Packet issue, PR, and packet doc all cross-link to each other.
+- `status.yaml` has packet entries for `P001` through `P023`.
+- At most one packet is `In Progress` at any time.
+- Each active packet has an owner and updated timestamp.
+- Packet doc front matter and `status.yaml` agree on current state.

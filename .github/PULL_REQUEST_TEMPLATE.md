@@ -2,7 +2,7 @@
 
 Packet ID: P000
 Spec Path: /Users/davidhickey/Documents/Projects/budgetradar/docs/execution/packets/P000-example.md
-Issue: #000
+Issue (optional): n/a
 
 ## Summary
 

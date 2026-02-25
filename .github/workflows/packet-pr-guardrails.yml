@@ -51,16 +51,9 @@ jobs:
               "PR body must include 'Packet ID: P00X'."
             require_pattern '^Spec Path:[[:space:]]*/.*/docs/execution/packets/P[0-9]{3}[-a-z0-9]*\.md[[:space:]]*$' \
               "PR body must include 'Spec Path' pointing to /docs/execution/packets/P00X-*.md."
-            require_pattern '^Issue:[[:space:]]*(#[0-9]+|https://github\.com/[^[:space:]]+/[^[:space:]]+/issues/[0-9]+)[[:space:]]*$' \
-              "PR body must include 'Issue: #<number>' or full issue URL."
 
             if printf '%s\n' "$body" | grep -Eq '^Packet ID:[[:space:]]*P000[[:space:]]*$'; then
               echo "::error::Replace template placeholder Packet ID (P000) with the real packet id."
-              fail=1
-            fi
-
-            if printf '%s\n' "$body" | grep -Eq '^Issue:[[:space:]]*#000[[:space:]]*$'; then
-              echo "::error::Replace template placeholder Issue (#000) with the real issue."
               fail=1
             fi
           fi

@@ -6,21 +6,16 @@ multi-agent delivery in BudgetRadar.
 ## Purpose
 
 - Store packet-level implementation specs in versioned markdown.
-- Keep project-level state mirrored in GitHub Projects (operational board).
+- Track packet state directly in repo docs (`packets/*.md` + `status.yaml`).
 - Make handoff deterministic across Codex and Google Anti-Gravity.
 
-## Canonical vs Mirror
+## Tracking Model
 
 - Canonical: packet markdown files in `docs/execution/packets/`.
-- Mirror: GitHub Project fields/status for work visibility and triage.
-- Project URL: `https://github.com/users/davidhickeyesq/projects/5`
+- Canonical: `docs/execution/status.yaml` for machine-readable status.
+- Optional mirror: GitHub issues/projects, if you choose to keep them.
 
-If state drifts, update packet docs first and then mirror into GitHub Project.
-
-## View Configuration Note
-
-GitHub CLI and public GraphQL mutations do not currently support creating
-Project views programmatically. Configure/rename views in the GitHub web UI.
+If state drifts, update packet docs and `status.yaml` first.
 
 ## Files
 
@@ -63,8 +58,9 @@ Project views programmatically. Configure/rename views in the GitHub web UI.
 All packet PRs must:
 
 1. Prefix title with packet ID (for example: `[P001] ...`).
-2. Link the packet issue and `Spec Path`.
+2. Include `Packet ID` and `Spec Path`.
 3. Include a `Validation` section with exact commands/results.
+4. Include issue/project links only if you are actively using them.
 
 Non-packet execution-infra PRs must use `[CHORE]` or `[EPIC]` prefix and still
 include a `Validation` section.
@@ -75,8 +71,8 @@ Use this lightweight loop for every packet. Do not add extra process unless this
 fails repeatedly.
 
 1. Kickoff prompt must include:
-   `Before coding, set Project Execution Status for this packet to In Progress and confirm it in your first reply.`
+   `Before coding, set packet front matter state to IN_PROGRESS and set status.yaml execution_status to In Progress; confirm in your first reply.`
 2. Completion prompt must include:
-   `Before done, set Project Execution Status for this packet to In Review and post the PR URL.`
-3. Human owner moves packet from `In Review` to `Done` after merge.
+   `Before done, set packet front matter state to REVIEW, update status.yaml, and post PR URL if one exists.`
+3. On merge, set packet state to `DONE` and `execution_status` to `Done`.
 4. Then promote the next dependency-cleared packet to `Ready`.
