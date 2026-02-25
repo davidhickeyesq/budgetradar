@@ -120,13 +120,17 @@ export default function CsvUploader({ accountId }: CsvUploaderProps) {
   const [error, setError] = useState<string | null>(null)
   const [dragover, setDragover] = useState(false)
   const [result, setResult] = useState<ImportResultPayload | null>(null)
+  const [mappingExpanded, setMappingExpanded] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function prepareSelectedFile(selectedFile: File) {
     const headers = await detectHeaders(selectedFile)
+    const suggested = suggestColumnMap(headers)
+    const incomplete = missingRequiredTargets(suggested).length > 0
     setFile(selectedFile)
     setDetectedHeaders(headers)
-    setColumnMap(suggestColumnMap(headers))
+    setColumnMap(suggested)
+    setMappingExpanded(incomplete)
     setError(null)
     setResult(null)
   }
@@ -263,35 +267,66 @@ export default function CsvUploader({ accountId }: CsvUploaderProps) {
 
         {file && detectedHeaders.length > 0 && (
           <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 space-y-3">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-slate-500">Header Mapping</p>
-              <p className="text-xs text-slate-500 mt-1">
-                Map your source columns to BudgetRadar fields before import.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[...REQUIRED_TARGETS, ...OPTIONAL_TARGETS].map((target) => (
-                <div key={target} className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700">
-                    {TARGET_LABELS[target]}{REQUIRED_TARGETS.includes(target) ? ' *' : ''}
-                  </label>
-                  <select
-                    value={columnMap[target] ?? ''}
-                    onChange={(event) => handleColumnChange(target, event.target.value)}
-                    className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm text-slate-800"
-                  >
-                    <option value="">Select source column</option>
-                    {detectedHeaders.map((header) => (
-                      <option key={`${target}-${header}`} value={header}>
-                        {header}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-[11px] text-slate-500">{TARGET_HELP[target]}</p>
+            {missingRequiredTargets(columnMap).length === 0 && !mappingExpanded ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-600 text-sm">&#x2714;</span>
+                  <p className="text-sm text-emerald-700 font-medium">
+                    All required fields mapped ({REQUIRED_TARGETS.length}/{REQUIRED_TARGETS.length})
+                  </p>
                 </div>
-              ))}
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setMappingExpanded(true)}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+                >
+                  Review mapping
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Header Mapping</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Map your source columns to BudgetRadar fields before import.
+                    </p>
+                  </div>
+                  {missingRequiredTargets(columnMap).length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setMappingExpanded(false)}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+                    >
+                      Collapse
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[...REQUIRED_TARGETS, ...OPTIONAL_TARGETS].map((target) => (
+                    <div key={target} className="space-y-1">
+                      <label className="text-xs font-medium text-slate-700">
+                        {TARGET_LABELS[target]}{REQUIRED_TARGETS.includes(target) ? ' *' : ''}
+                      </label>
+                      <select
+                        value={columnMap[target] ?? ''}
+                        onChange={(event) => handleColumnChange(target, event.target.value)}
+                        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm text-slate-800"
+                      >
+                        <option value="">Select source column</option>
+                        {detectedHeaders.map((header) => (
+                          <option key={`${target}-${header}`} value={header}>
+                            {header}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[11px] text-slate-500">{TARGET_HELP[target]}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 

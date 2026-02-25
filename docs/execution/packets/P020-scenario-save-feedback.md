@@ -1,11 +1,11 @@
 ---
 id: P020
 title: Save-scenario confirmation feedback
-state: TODO
-execution_status: Backlog
-owner:
+state: REVIEW
+execution_status: In Review
+owner: claude-code
 branch: codex/p020-scenario-save-feedback
-pr:
+pr: https://github.com/davidhickeyesq/budgetradar/pull/48
 depends_on:
   - P019
 updated_at: 2026-02-24

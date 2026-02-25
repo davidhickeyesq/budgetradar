@@ -338,6 +338,7 @@ export default function Home() {
   const [scenarioPlan, setScenarioPlan] = useState<ScenarioPlan | null>(null)
   const [scenarioLoading, setScenarioLoading] = useState(false)
   const [scenarioSaving, setScenarioSaving] = useState(false)
+  const [saveConfirmation, setSaveConfirmation] = useState<string | null>(null)
   const [scenarioError, setScenarioError] = useState<string | null>(null)
   const [scenarioName, setScenarioName] = useState('')
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRecordPayload[]>([])
@@ -594,7 +595,10 @@ export default function Home() {
       setScenarioName(savedScenario.name)
       await loadSavedScenarios(savedScenario.id)
       setScenarioError(null)
+      setSaveConfirmation(`Saved "${savedScenario.name}"`)
+      setTimeout(() => setSaveConfirmation(null), 3000)
     } catch (err) {
+      setSaveConfirmation(null)
       setScenarioError(err instanceof Error ? err.message : 'Failed to save scenario')
     } finally {
       setScenarioSaving(false)
@@ -751,15 +755,63 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex flex-col items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full border-3 border-indigo-200 border-t-indigo-600"
-            style={{ animation: 'spin 0.8s linear infinite' }}
-          />
-          <p className="text-sm text-slate-500">Loading channel analysis...</p>
+      <div className="space-y-6 animate-pulse">
+        {/* Target CPA bar skeleton */}
+        <div className="card-static p-4 flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-3 w-20 rounded bg-slate-200" />
+            <div className="h-2.5 w-48 rounded bg-slate-100" />
+          </div>
+          <div className="h-9 w-24 rounded-md bg-slate-200" />
         </div>
-        <style>{'@keyframes spin { to { transform: rotate(360deg) } }'}</style>
+
+        {/* Action banner skeleton */}
+        <div className="card-static border-l-4 border-slate-200 p-5">
+          <div className="flex items-start gap-3">
+            <div className="h-5 w-5 rounded bg-slate-200 mt-0.5" />
+            <div className="space-y-2 flex-1">
+              <div className="h-2.5 w-24 rounded bg-slate-200" />
+              <div className="h-4 w-72 rounded bg-slate-200" />
+              <div className="h-3 w-40 rounded bg-slate-100" />
+            </div>
+          </div>
+        </div>
+
+        {/* Channel grid + summary sidebar skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 card-static p-6 space-y-4">
+            <div className="h-5 w-36 rounded bg-slate-200" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((n) => (
+                <div key={n} className="rounded-md border border-slate-100 p-4 space-y-2">
+                  <div className="h-4 w-28 rounded bg-slate-200" />
+                  <div className="h-3 w-20 rounded bg-slate-100" />
+                  <div className="h-24 rounded bg-slate-100" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card-static p-6 space-y-4">
+            <div className="h-5 w-20 rounded bg-slate-200" />
+            <div className="h-8 w-32 rounded bg-slate-200" />
+            <div className="space-y-3">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="flex items-center justify-between">
+                  <div className="h-3 w-16 rounded bg-slate-100" />
+                  <div className="h-4 w-6 rounded bg-slate-200" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Scenario planner skeleton */}
+        <div className="card-static p-6">
+          <div className="space-y-2">
+            <div className="h-2.5 w-24 rounded bg-slate-200" />
+            <div className="h-6 w-64 rounded bg-slate-200" />
+          </div>
+        </div>
       </div>
     )
   }
@@ -800,7 +852,7 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      <div className="card-static p-4 flex items-center justify-between animate-fade-in">
+      <div className="card-static p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
         <div>
           <label htmlFor="target-cpa-input" className="text-xs uppercase tracking-wide text-slate-500 font-semibold">
             Target CPA
@@ -907,6 +959,7 @@ export default function Home() {
               onScenarioNameChange={setScenarioName}
               onSaveScenario={handleSaveScenario}
               scenarioSaving={scenarioSaving}
+              saveConfirmation={saveConfirmation}
               savedScenarios={savedScenarios}
               selectedScenarioId={selectedScenarioId}
               onSelectScenario={handleSelectScenario}
@@ -997,6 +1050,7 @@ interface ScenarioActionCenterProps {
   onScenarioNameChange: (value: string) => void
   onSaveScenario: () => void | Promise<void>
   scenarioSaving: boolean
+  saveConfirmation: string | null
   savedScenarios: ScenarioRecordPayload[]
   selectedScenarioId: string
   onSelectScenario: (scenarioId: string) => void
@@ -1026,6 +1080,7 @@ function ScenarioActionCenter({
   onScenarioNameChange,
   onSaveScenario,
   scenarioSaving,
+  saveConfirmation,
   savedScenarios,
   selectedScenarioId,
   onSelectScenario,
@@ -1084,13 +1139,13 @@ function ScenarioActionCenter({
             <p className="text-xs text-slate-500 mt-1">
               Budget moves are simulated in fixed 10% steps to preserve marginal-curve numerical stability.
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-1.5 sm:gap-2">
               {BUDGET_DELTA_PRESETS.map((preset) => (
                 <button
                   key={preset}
                   type="button"
                   onClick={() => onBudgetDeltaPercentChange(preset)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
+                  className={`rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs font-semibold border transition-colors ${
                     budgetDeltaPercent === preset
                       ? 'bg-indigo-600 border-indigo-600 text-white'
                       : 'border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -1190,7 +1245,7 @@ function ScenarioActionCenter({
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {scenarioPlan.recommendations.map((recommendation) => (
               <div
                 key={recommendation.channelName}
@@ -1255,14 +1310,21 @@ function ScenarioActionCenter({
               onChange={(event) => onScenarioNameChange(event.target.value)}
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
-            <button
-              className="btn-primary"
-              onClick={() => void onSaveScenario()}
-              disabled={scenarioSaving}
-              type="button"
-            >
-              {scenarioSaving ? 'Saving...' : 'Save Scenario'}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                className="btn-primary"
+                onClick={() => void onSaveScenario()}
+                disabled={scenarioSaving}
+                type="button"
+              >
+                {scenarioSaving ? 'Saving...' : 'Save Scenario'}
+              </button>
+              {saveConfirmation && (
+                <span className="text-sm font-medium text-emerald-600 animate-fade-in">
+                  {saveConfirmation}
+                </span>
+              )}
+            </div>
           </div>
         </>
       )}

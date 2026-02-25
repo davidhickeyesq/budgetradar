@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type {
   ChannelMetrics,
   ConfidenceTier,
@@ -60,6 +61,7 @@ export function TrafficLightRadar({
   channels,
   scenarioRecommendations = {},
 }: TrafficLightRadarProps) {
+  const [showHelp, setShowHelp] = useState(false)
   const hasChannels = channels.length > 0
   const firstTarget = hasChannels ? channels[0].targetCpa : null
   const uniformTarget = hasChannels && channels.every((channel) => channel.targetCpa === firstTarget)
@@ -68,7 +70,20 @@ export function TrafficLightRadar({
     <div className="animate-fade-in">
       <div className="card-static p-6">
         <div className="flex items-baseline justify-between mb-1">
-          <h2 className="text-lg font-semibold text-slate-900">Channel Analysis</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-slate-900">Channel Analysis</h2>
+            <button
+              type="button"
+              onClick={() => setShowHelp((v) => !v)}
+              className="text-slate-400 hover:text-indigo-500 transition-colors"
+              title="How to read the cost curve"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4m0-4h.01" />
+              </svg>
+            </button>
+          </div>
           <span className="text-sm text-slate-500">
             Target CPA:{' '}
             <span className="font-medium text-slate-700">
@@ -76,7 +91,26 @@ export function TrafficLightRadar({
             </span>
           </span>
         </div>
-        <p className="text-sm text-slate-400 mb-6">Marginal efficiency across your active channels</p>
+        <p className="text-sm text-slate-400 mb-4">Marginal efficiency across your active channels</p>
+
+        {showHelp && (
+          <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-4 mb-4 text-sm text-slate-700 space-y-2 animate-fade-in">
+            <p className="font-medium text-indigo-800">How to Read the Cost Curve</p>
+            <p>
+              Each chart shows how much your <strong>next conversion</strong> costs as you
+              increase spend. As you spend more, each additional conversion gets progressively
+              more expensive &mdash; this is the &ldquo;efficiency wall.&rdquo;
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-slate-600">
+              <li><span className="text-emerald-600 font-medium">Green zone</span> &mdash; your next conversion costs less than target. Room to grow.</li>
+              <li><span className="text-amber-600 font-medium">Yellow zone</span> &mdash; near your target. Efficiency is balanced.</li>
+              <li><span className="text-red-600 font-medium">Red zone</span> &mdash; each new conversion costs more than target. Diminishing returns.</li>
+            </ul>
+            <p className="text-xs text-slate-500">
+              The black dot shows where you are now. The teal dot shows where the scenario recommends you move.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-4">
           {channels.map((channel, i) => (
@@ -170,7 +204,7 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
             projectedPoint={projectedPoint}
           />
           {/* Chart legend */}
-          <div className="flex items-center justify-center gap-5 mt-3 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 mt-3 text-xs text-slate-500">
             <div className="flex items-center gap-1.5">
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
               Scale

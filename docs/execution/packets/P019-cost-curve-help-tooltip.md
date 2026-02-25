@@ -1,9 +1,9 @@
 ---
 id: P019
 title: Cost-curve help tooltip for non-technical users
-state: TODO
-execution_status: Backlog
-owner:
+state: REVIEW
+execution_status: In Review
+owner: claude-code
 branch: codex/p019-cost-curve-help-tooltip
 pr:
 depends_on:

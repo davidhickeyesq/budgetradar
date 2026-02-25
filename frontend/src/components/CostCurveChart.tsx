@@ -182,7 +182,7 @@ export function CostCurveChart({
     const uid = channelName.replace(/\s+/g, '-')
 
     return (
-        <div style={{ width: '100%', height: 300 }}>
+        <div className="w-full h-[250px] sm:h-[300px]">
             <ResponsiveContainer>
                 <AreaChart data={data} margin={{ top: 12, right: 24, left: 8, bottom: 20 }}>
                     <defs>

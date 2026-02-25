@@ -1,11 +1,11 @@
 ---
 id: P022
 title: Dashboard structural loading skeleton
-state: TODO
-execution_status: Backlog
-owner:
+state: REVIEW
+execution_status: In Review
+owner: claude-code
 branch: codex/p022-dashboard-loading-skeleton
-pr:
+pr: https://github.com/davidhickeyesq/budgetradar/pull/50
 depends_on:
   - P021
 updated_at: 2026-02-24
