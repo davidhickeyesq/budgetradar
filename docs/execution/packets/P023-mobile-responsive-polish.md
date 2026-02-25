@@ -5,7 +5,7 @@ state: REVIEW
 execution_status: In Review
 owner: claude-code
 branch: codex/p023-mobile-responsive-polish
-pr:
+pr: https://github.com/davidhickeyesq/budgetradar/pull/51
 depends_on:
   - P022
 updated_at: 2026-02-24
