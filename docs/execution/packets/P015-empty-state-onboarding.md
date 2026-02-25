@@ -1,9 +1,9 @@
 ---
 id: P015
 title: Empty-state onboarding for no-data accounts
-state: TODO
-execution_status: Backlog
-owner:
+state: REVIEW
+execution_status: In Review
+owner: claude-code
 branch: codex/p015-empty-state-onboarding
 pr:
 depends_on:
