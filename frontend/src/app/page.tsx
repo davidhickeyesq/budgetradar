@@ -520,8 +520,6 @@ export default function Home() {
       budgetDeltaPercentOverride: DEFAULT_BUDGET_DELTA_PERCENT,
       lockedChannelsOverride: [],
       suppressErrors: true,
-    }).then(() => {
-      setScenarioExpanded(false)
     })
   }, [accountId, channels.length, runScenarioGeneration])
 
@@ -889,7 +887,7 @@ export default function Home() {
         <div className="card-static border-l-4 border-indigo-500 p-5 animate-fade-in">
           <div className="flex items-start gap-3">
             <span className="text-lg mt-0.5">&#x1F3AF;</span>
-            <div>
+            <div className="flex-1">
               <p className="text-xs uppercase tracking-[0.12em] text-indigo-500 font-semibold">
                 What To Do Now
               </p>
@@ -898,6 +896,27 @@ export default function Home() {
                 Projected net delta: {scenarioPlan.projectedSummary.totalSpendDelta >= 0 ? '+' : ''}
                 ${formatMoney(Math.abs(scenarioPlan.projectedSummary.totalSpendDelta), 0)}/day
               </p>
+              <div className="flex items-center gap-3 mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScenarioExpanded(true)
+                    setTimeout(() => {
+                      document.getElementById('scenario-planner')?.scrollIntoView({ behavior: 'smooth' })
+                    }, 100)
+                  }}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                >
+                  View Full Plan ↓
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
+                >
+                  Export Plan CSV
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -913,6 +932,12 @@ export default function Home() {
           <TrafficLightRadar
             channels={channels}
             scenarioRecommendations={scenarioRecommendationLookup}
+            onScrollToPlanner={() => {
+              setScenarioExpanded(true)
+              setTimeout(() => {
+                document.getElementById('scenario-planner')?.scrollIntoView({ behavior: 'smooth' })
+              }, 100)
+            }}
           />
         </div>
 
@@ -921,7 +946,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="card-static overflow-hidden animate-fade-in">
+      <div id="scenario-planner" className="card-static overflow-hidden animate-fade-in">
         <button
           type="button"
           onClick={() => setScenarioExpanded((v) => !v)}

@@ -14,6 +14,7 @@ import { CostCurveChart } from '@/components/CostCurveChart'
 interface TrafficLightRadarProps {
   channels: ChannelMetrics[]
   scenarioRecommendations?: Record<string, ScenarioRecommendation>
+  onScrollToPlanner?: () => void
 }
 
 const borderClasses: Record<TrafficLight, string> = {
@@ -60,6 +61,7 @@ const dataQualityBadgeClasses: Record<DataQualityState, string> = {
 export function TrafficLightRadar({
   channels,
   scenarioRecommendations = {},
+  onScrollToPlanner,
 }: TrafficLightRadarProps) {
   const [showHelp, setShowHelp] = useState(false)
   const hasChannels = channels.length > 0
@@ -119,6 +121,7 @@ export function TrafficLightRadar({
               channel={channel}
               index={i}
               scenarioRecommendation={scenarioRecommendations[channel.channelName]}
+              onScrollToPlanner={onScrollToPlanner}
             />
           ))}
         </div>
@@ -131,9 +134,10 @@ interface ChannelRowProps {
   channel: ChannelMetrics
   index: number
   scenarioRecommendation?: ScenarioRecommendation
+  onScrollToPlanner?: () => void
 }
 
-function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps) {
+function ChannelRow({ channel, index, scenarioRecommendation, onScrollToPlanner }: ChannelRowProps) {
   const {
     channelName,
     marginalCpa,
@@ -244,7 +248,18 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
 
       {scenarioRecommendation && (
         <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Scenario Move</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Scenario Move</p>
+            {onScrollToPlanner && (
+              <button
+                type="button"
+                onClick={onScrollToPlanner}
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+              >
+                Edit in planner ↓
+              </button>
+            )}
+          </div>
           <p className="text-sm text-slate-700 mt-1">
             {formatScenarioMove(scenarioRecommendation)}
           </p>
