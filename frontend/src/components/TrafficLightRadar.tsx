@@ -180,7 +180,8 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
           <p className="text-sm text-slate-500 mt-0.5">
             Daily spend: <span className="font-medium text-slate-700">${currentSpend.toLocaleString()}</span>
             {marginalCpa !== null && (
-              <> · Marginal CPA: <span className="font-medium text-slate-700">${marginalCpa.toFixed(2)}</span></>
+              <> · Next-conversion cost: <span className="font-medium text-slate-700">${marginalCpa.toFixed(2)}</span>{' '}
+              <span className="text-xs text-slate-400">(Marginal CPA)</span></>
             )}
           </p>
         </div>
@@ -193,7 +194,7 @@ function ChannelRow({ channel, index, scenarioRecommendation }: ChannelRowProps)
       {/* Cost Curve Chart */}
       {hasBackendCurve || hasLegacyCurve ? (
         <>
-          <p className="text-xs text-slate-400 mb-2">How marginal CPA changes as you scale spend</p>
+          <p className="text-xs text-slate-400 mb-2">How the cost of your next conversion changes as you scale spend</p>
           <CostCurveChart
             modelParams={modelParams}
             currentSpend={currentSpend}

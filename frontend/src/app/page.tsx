@@ -834,11 +834,11 @@ export default function Home() {
       <div className="card-static p-8 text-center animate-fade-in max-w-lg mx-auto mt-12">
         <span className="text-5xl block mb-4">&#x1F4E1;</span>
         <h2 className="text-xl font-semibold text-slate-900">
-          Welcome to Marginal Efficiency Radar
+          Welcome to BudgetRadar
         </h2>
         <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-          Import your marketing channel data to see traffic light analysis,
-          marginal CPA curves, and budget reallocation recommendations.
+          Import your marketing data and BudgetRadar will show you exactly
+          which channels to scale, which to cut, and by how much.
         </p>
         <div className="mt-6 flex flex-col items-center gap-3">
           <a href="/import" className="btn-primary inline-block">
@@ -852,6 +852,13 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
+      {/* Value context bar */}
+      <div className="card-static border-l-4 border-indigo-500 p-4 animate-fade-in">
+        <p className="text-sm text-slate-700">
+          <span className="font-semibold text-slate-900">BudgetRadar</span> shows you where your next dollar of ad spend is wasted — and where it still works.
+        </p>
+      </div>
+
       <div className="card-static p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
         <div>
           <label htmlFor="target-cpa-input" className="text-xs uppercase tracking-wide text-slate-500 font-semibold">
