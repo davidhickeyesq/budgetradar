@@ -1048,13 +1048,10 @@ function SummaryCard({
         )}
       </div>
 
-      {accountId && (
+      {accountName && (
         <>
           <hr className="border-slate-100" />
-          <div className="text-xs text-slate-500 space-y-1">
-            <p className="font-medium text-slate-700">{accountName ?? 'Active Account'}</p>
-            <p className="font-mono">{accountId}</p>
-          </div>
+          <p className="text-xs font-medium text-slate-700">{accountName}</p>
         </>
       )}
     </div>
@@ -1319,7 +1316,7 @@ function ScenarioActionCenter({
 
           <div className="flex flex-wrap items-center gap-2">
             <button
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+              className="btn-primary"
               onClick={onExportCsv}
               type="button"
             >
@@ -1330,7 +1327,7 @@ function ScenarioActionCenter({
               onClick={onExportJson}
               type="button"
             >
-              Export Plan JSON
+              JSON
             </button>
           </div>
 

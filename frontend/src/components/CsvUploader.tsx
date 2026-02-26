@@ -259,7 +259,9 @@ export default function CsvUploader({ accountId }: CsvUploaderProps) {
                 <p className="text-sm font-medium text-slate-700">
                   Drop your CSV here, or <span className="text-indigo-600 underline">browse</span>
                 </p>
-                <p className="text-xs text-slate-400">Header mapping is supported</p>
+                <p className="text-xs text-slate-400">
+                  Required columns: date, channel_name, spend, conversions
+                </p>
               </>
             )}
           </div>

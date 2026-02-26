@@ -272,19 +272,18 @@ function ChannelRow({ channel, index, scenarioRecommendation, onScrollToPlanner 
         <p className="text-sm text-slate-500">
           {getRecommendation(trafficLight)}
         </p>
-        <div className="flex items-center gap-2">
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${dataQualityBadgeClasses[resolvedDataQualityState]}`}>
-            {getDataQualityLabel(resolvedDataQualityState)}
-          </span>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${confidenceBadgeClasses[confidenceTier]}`}>
-            {getConfidenceLabel(confidenceTier)}
-          </span>
-          {rSquared !== null && (
-            <p className="text-xs text-slate-400">
-              R² {(rSquared * 100).toFixed(1)}%
-            </p>
-          )}
-        </div>
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+            resolvedDataQualityState !== 'ok'
+              ? dataQualityBadgeClasses[resolvedDataQualityState]
+              : confidenceBadgeClasses[confidenceTier]
+          }`}
+          title={rSquared !== null ? `Model fit: R² ${(rSquared * 100).toFixed(1)}%` : undefined}
+        >
+          {resolvedDataQualityState !== 'ok'
+            ? getDataQualityLabel(resolvedDataQualityState)
+            : getConfidenceLabel(confidenceTier)}
+        </span>
       </div>
 
       {resolvedDataQualityState !== 'ok' && (
