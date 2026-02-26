@@ -120,7 +120,7 @@ function CustomTooltip({ active, payload, label }: any) {
                 Spend: <span style={{ color: '#1e293b', fontWeight: 600 }}>${label?.toLocaleString()}</span>
             </p>
             <p style={{ margin: '4px 0 0', color: c.text, fontWeight: 600, fontSize: 14 }}>
-                Marginal CPA: ${data.marginalCpa.toFixed(2)}
+                Next-conversion cost: ${data.marginalCpa.toFixed(2)}
             </p>
             <p style={{ margin: '3px 0 0', color: c.text, fontSize: 11, opacity: 0.8 }}>
                 {c.label}
@@ -234,11 +234,11 @@ export function CostCurveChart({
                         tickLine={false}
                         domain={[0, yMax]}
                         label={{
-                            value: 'Marginal CPA',
+                            value: 'Cost per Next Conversion',
                             angle: -90,
                             position: 'insideLeft',
                             offset: 4,
-                            style: { fontSize: 11, fill: '#94a3b8', textAnchor: 'middle' },
+                            style: { fontSize: 10, fill: '#94a3b8', textAnchor: 'middle' },
                         }}
                     />
 

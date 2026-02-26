@@ -3,8 +3,8 @@ import "./globals.css";
 import { NavBar } from "@/components/NavBar";
 
 export const metadata: Metadata = {
-  title: "Marginal Efficiency Radar",
-  description: "Marketing FP&A tool to identify diminishing returns in ad spend",
+  title: "BudgetRadar",
+  description: "Find where your ad budget hits diminishing returns and reallocate to what works",
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
               <h1 className="text-xl font-bold text-white tracking-tight">
-                📡 Marginal Efficiency Radar
+                📡 BudgetRadar
               </h1>
               <NavBar />
             </div>
