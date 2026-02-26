@@ -114,6 +114,33 @@ export function TrafficLightRadar({
           </div>
         )}
 
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-4 text-xs text-slate-500">
+          <div className="flex items-center gap-1.5">
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+            Scale
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+            Maintain
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
+            Cut
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span style={{ width: 12, height: 2, background: '#6366f1', display: 'inline-block', borderRadius: 1 }} />
+            Target
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#1e293b', display: 'inline-block', border: '2px solid white', boxShadow: '0 0 0 1px #cbd5e1' }} />
+            Current
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0f766e', display: 'inline-block', border: '2px solid white', boxShadow: '0 0 0 1px #99f6e4' }} />
+            Projected
+          </div>
+        </div>
+
         <div className="space-y-4">
           {channels.map((channel, i) => (
             <ChannelRow
@@ -208,33 +235,6 @@ function ChannelRow({ channel, index, scenarioRecommendation, onScrollToPlanner 
             currentPoint={currentPoint}
             projectedPoint={projectedPoint}
           />
-          {/* Chart legend */}
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 mt-3 text-xs text-slate-500">
-            <div className="flex items-center gap-1.5">
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-              Scale
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
-              Maintain
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
-              Cut
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span style={{ width: 12, height: 2, background: '#6366f1', display: 'inline-block', borderRadius: 1 }} />
-              Target
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#1e293b', display: 'inline-block', border: '2px solid white', boxShadow: '0 0 0 1px #cbd5e1' }} />
-              Current
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0f766e', display: 'inline-block', border: '2px solid white', boxShadow: '0 0 0 1px #99f6e4' }} />
-              Projected
-            </div>
-          </div>
         </>
       ) : (
         <div className="py-4 px-3 rounded-lg bg-slate-50 text-center">

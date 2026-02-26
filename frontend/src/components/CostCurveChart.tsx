@@ -11,6 +11,7 @@ import {
     ReferenceDot,
     ReferenceArea,
     ResponsiveContainer,
+    Label,
 } from 'recharts'
 import type { CurvePoint, CurrentPoint, HillParameters } from '@/types'
 
@@ -306,7 +307,9 @@ export function CostCurveChart({
                         fill="#1e293b"
                         stroke="#ffffff"
                         strokeWidth={3}
-                    />
+                    >
+                        <Label value={`Now: $${Math.round(resolvedCurrentPoint.spend)}/day`} position="top" style={{ fontSize: 10, fill: '#475569' }} />
+                    </ReferenceDot>
 
                     {hasProjectedPoint && projectedPoint && (
                         <>
@@ -324,7 +327,9 @@ export function CostCurveChart({
                                 fill="#0f766e"
                                 stroke="#ffffff"
                                 strokeWidth={2}
-                            />
+                            >
+                                <Label value={`Projected: $${Math.round(projectedPoint.spend)}/day`} position="top" style={{ fontSize: 10, fill: '#0f766e' }} />
+                            </ReferenceDot>
                         </>
                     )}
                 </AreaChart>

@@ -2,6 +2,7 @@ export type TrafficLight = 'green' | 'yellow' | 'red' | 'grey'
 export type ConfidenceTier = 'high' | 'medium' | 'low' | 'unknown'
 export type DataQualityState = 'ok' | 'low_confidence' | 'insufficient_history'
 
+/** @internal Model parameters from curve fitting — never expose alpha/beta/kappa in UI */
 export interface HillParameters {
   alpha: number
   beta: number
@@ -123,7 +124,7 @@ export function getConfidenceLabel(tier: ConfidenceTier): string {
 }
 
 export function getDataQualityLabel(state: DataQualityState): string {
-  if (state === 'ok') return 'Quality OK'
-  if (state === 'low_confidence') return 'Low Confidence'
-  return 'Insufficient History'
+  if (state === 'ok') return 'Reliable model'
+  if (state === 'low_confidence') return 'Limited accuracy'
+  return 'Needs 21+ days of data'
 }

@@ -1125,8 +1125,11 @@ function ScenarioActionCenter({
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="space-y-3 xl:col-span-2">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+          <details className="space-y-2">
+            <summary className="text-xs font-medium text-indigo-600 cursor-pointer hover:text-indigo-800 transition-colors list-none">
+              Override target CPA for specific channels →
+            </summary>
+            <div className="flex items-center justify-between mt-3">
               <p className="text-xs uppercase tracking-wide text-slate-500">Channel Target CPA</p>
               <button
                 className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1158,11 +1161,11 @@ function ScenarioActionCenter({
                 {targetCpaError}
               </div>
             )}
-          </div>
+          </details>
 
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <label className="text-xs uppercase tracking-wide text-slate-500">Budget Delta (%)</label>
+              <label className="text-xs uppercase tracking-wide text-slate-500">Total Budget Change</label>
               <ScenarioStepConstraintHelp />
             </div>
             <p className="text-xs text-slate-500 mt-1">
@@ -1192,7 +1195,7 @@ function ScenarioActionCenter({
               className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
             <p className="text-xs text-slate-500 mt-1">
-              0 keeps total budget flat. Positive values add spend, negative values trim spend.
+              0% reallocates without changing your total budget. Positive adds spend, negative trims.
             </p>
           </div>
 
@@ -1220,7 +1223,7 @@ function ScenarioActionCenter({
               disabled={!plannerEnabled || scenarioLoading || targetCpaApplying}
               type="button"
             >
-              {scenarioLoading ? 'Generating...' : 'Generate Recommended Plan'}
+              {scenarioLoading ? 'Generating...' : scenarioPlan ? 'Regenerate Plan' : 'Generate Recommended Plan'}
             </button>
             <button
               className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
@@ -1361,18 +1364,39 @@ function ScenarioActionCenter({
       {savedScenarios.length > 0 && (
         <div className="space-y-2">
           <label className="text-xs uppercase tracking-wide text-slate-500">Saved Scenarios</label>
-          <select
-            value={selectedScenarioId}
-            onChange={(event) => onSelectScenario(event.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800"
-          >
-            <option value="">Select a saved scenario</option>
-            {savedScenarios.map((scenario) => (
-              <option key={scenario.id} value={scenario.id}>
-                {scenario.name}
-              </option>
-            ))}
-          </select>
+          <div className="space-y-2">
+            {savedScenarios.map((scenario) => {
+              const plan = readScenarioPlan(scenario.budget_allocation)
+              const delta = plan?.projectedSummary?.totalSpendDelta ?? null
+              const isSelected = selectedScenarioId === scenario.id
+              return (
+                <button
+                  key={scenario.id}
+                  type="button"
+                  onClick={() => onSelectScenario(scenario.id)}
+                  className={`w-full text-left rounded-lg border px-3 py-2.5 transition-colors ${
+                    isSelected
+                      ? 'border-indigo-400 bg-indigo-50'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <p className={`text-sm font-medium ${isSelected ? 'text-indigo-700' : 'text-slate-800'}`}>
+                    {scenario.name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                    {scenario.created_at && (
+                      <span>{new Date(scenario.created_at).toLocaleDateString()}</span>
+                    )}
+                    {delta !== null && (
+                      <span className={delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-red-600' : 'text-slate-500'}>
+                        {delta > 0 ? '+' : ''}{delta.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}/day
+                      </span>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>
