@@ -370,9 +370,9 @@ export default function CsvUploader({ accountId }: CsvUploaderProps) {
             <div className="mt-4">
               <Link
                 href="/"
-                className="inline-flex items-center gap-1.5 font-medium text-indigo-600 hover:text-indigo-800 transition-colors text-sm"
+                className="btn-primary inline-flex items-center gap-2"
               >
-                → View Dashboard
+                {result.channels.length} channels ready → Go to Dashboard
               </Link>
             </div>
           </div>
