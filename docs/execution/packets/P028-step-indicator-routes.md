@@ -1,9 +1,9 @@
 ---
 id: P028
 title: Update StepIndicator for 3-route mapping + clickable links
-state: TODO
-execution_status: Backlog
-owner: ""
+state: DONE
+execution_status: Done
+owner: claude-code
 branch: codex/p028-step-indicator-routes
 pr: ""
 depends_on:

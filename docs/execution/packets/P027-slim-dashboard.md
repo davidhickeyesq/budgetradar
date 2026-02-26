@@ -1,9 +1,9 @@
 ---
 id: P027
 title: Slim down page.tsx (remove all planner code)
-state: TODO
-execution_status: Backlog
-owner: ""
+state: DONE
+execution_status: Done
+owner: claude-code
 branch: codex/p027-slim-dashboard
 pr: ""
 depends_on:

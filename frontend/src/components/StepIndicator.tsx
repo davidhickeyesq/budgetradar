@@ -1,17 +1,25 @@
 'use client'
 
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const STEPS = [
-  { key: 'import', label: 'Import Data', number: '1' },
-  { key: 'review', label: 'Review Channels', number: '2' },
-  { key: 'plan', label: 'Generate Plan', number: '3' },
-  { key: 'export', label: 'Export & Act', number: '4' },
+  { key: 'import', label: 'Import Data', number: '1', href: '/import' },
+  { key: 'review', label: 'Review Channels', number: '2', href: '/' },
+  { key: 'plan', label: 'Generate Plan', number: '3', href: '/plan' },
+  { key: 'export', label: 'Export & Act', number: '4', href: '/plan' },
 ]
+
+function resolveCurrentStep(pathname: string): number {
+  if (pathname === '/import') return 0
+  if (pathname === '/') return 1
+  if (pathname === '/plan') return 2
+  return 1
+}
 
 export function StepIndicator() {
   const pathname = usePathname()
-  const currentStep = pathname === '/import' ? 0 : 1
+  const currentStep = resolveCurrentStep(pathname)
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -24,8 +32,9 @@ export function StepIndicator() {
               {i > 0 && (
                 <span className={`mx-1 ${isPast ? 'text-indigo-300' : 'text-white/30'}`}>→</span>
               )}
-              <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium transition-all ${
+              <Link
+                href={step.href}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium transition-all hover:bg-white/15 ${
                   isActive
                     ? 'bg-white/25 text-white'
                     : isPast
@@ -43,7 +52,7 @@ export function StepIndicator() {
                   {isPast ? '✓' : step.number}
                 </span>
                 <span className="hidden sm:inline">{step.label}</span>
-              </span>
+              </Link>
             </div>
           )
         })}

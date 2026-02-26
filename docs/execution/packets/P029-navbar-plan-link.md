@@ -1,9 +1,9 @@
 ---
 id: P029
 title: Add Plan to NavBar
-state: TODO
-execution_status: Backlog
-owner: ""
+state: DONE
+execution_status: Done
+owner: claude-code
 branch: codex/p029-navbar-plan-link
 pr: ""
 depends_on:
