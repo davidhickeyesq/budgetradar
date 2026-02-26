@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 import {
   fetchCsvTemplate,
@@ -57,9 +58,12 @@ export default function ImportPage() {
   return (
     <main className="space-y-6">
       <div className="mb-2 animate-fade-in">
+        <Link href="/" className="text-sm text-slate-500 hover:text-indigo-600 transition-colors mb-2 inline-block">
+          ← Back to Dashboard
+        </Link>
         <h1 className="text-2xl font-bold text-slate-900">Import Marketing Data</h1>
         <p className="text-slate-500 mt-1">
-          Connect Google Ads for daily sync or upload CSV with header mapping.
+          Upload your campaign data as CSV to get started.
         </p>
       </div>
 
